@@ -259,7 +259,7 @@ function resumoFaixas(f){
   }
   return txt;
 }
-var NOME_PERNA={dir:'Sua direita',esq:'Sua esquerda'};
+var NOME_PERNA={dir:'Perna direita',esq:'Perna esquerda'};
 
 // ---------- carregamento ----------
 function localDB(){
@@ -442,7 +442,7 @@ function telaReg2(){
   '<div class="head"><p class="eyebrow">Registro pós-treino, 2 de 3</p><h1>Onde e quanto doeu?</h1><p class="lead">Vista de cima, como se você olhasse para as suas pernas.</p></div>'+
   '<div><span class="lbl">Em qual perna você sentiu desconforto?</span><div class="seg">'+leg('esq')+leg('dir')+'</div></div>'+
   (p?
-  '<div><span class="lbl" style="font-size:13px;color:var(--muted)">Escolha o nível e toque nas faixas da '+(p==='dir'?'sua direita':'sua esquerda')+'. Tocar de novo no mesmo nível desmarca; a borracha apaga.</span><div class="pin">'+pin(1,'Leve','var(--p1)')+pin(2,'Moderado','var(--p2)')+pin(3,'Forte','var(--p3)')+pin(0,'','')+'</div></div>'+
+  '<div><span class="lbl" style="font-size:13px;color:var(--muted)">Escolha o nível e toque nas faixas da '+(p==='dir'?'perna direita':'perna esquerda')+'. Tocar de novo no mesmo nível desmarca; a borracha apaga.</span><div class="pin">'+pin(1,'Leve','var(--p1)')+pin(2,'Moderado','var(--p2)')+pin(3,'Forte','var(--p3)')+pin(0,'','')+'</div></div>'+
   '<div class="legcard"><span class="tag" style="top:12px">Joelho</span><span class="tag" style="bottom:12px">Pé</span><div class="legbox"><svg viewBox="15 248 175 455" aria-hidden="true">'+LEG+'</svg>'+bandsHtml(p)+'</div></div>'
   :'<div class="card" style="align-items:center;text-align:center;padding:28px 16px"><p class="lead">Toque em uma das pernas acima para abrir o mapa da tíbia. Se doeram as duas, marque uma e depois a outra.</p></div>')+
   '<div class="row"><button class="btn ghost" data-act="voltar1">Voltar</button><button class="btn" data-act="cont2"'+(marc.length?'':' disabled')+'>Continuar</button></div>'+
