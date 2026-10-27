@@ -114,6 +114,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(-
 .day .p.l2{border:none;background:var(--p2)}
 .day .p.l3{border:none;background:var(--p3)}
 .day .p.rest{border:none;background:var(--chip)}
+.day .p.fut{border:1.5px dotted var(--line2);opacity:.5}
 .day .km{color:var(--ink);font-weight:600}
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted)}
 .legend span{display:flex;align-items:center;gap:6px}
@@ -218,6 +219,18 @@ var LEG=document.getElementById('legsvg').content.querySelector('svg').innerHTML
 function pad(n){return String(n).padStart(2,'0')}
 function isoLocal(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
 function hoje(){return isoLocal(new Date())}
+function domingoDe(iso){var p=iso.split('-');var x=new Date(+p[0],+p[1]-1,+p[2]);x.setDate(x.getDate()-x.getDay());return isoLocal(x)}
+function somaDias(iso,n){var p=iso.split('-');var x=new Date(+p[0],+p[1]-1,+p[2]);x.setDate(x.getDate()+n);return isoLocal(x)}
+function rotuloSemana(ini){var p=ini.split('-'),a=new Date(+p[0],+p[1]-1,+p[2]),b=new Date(+p[0],+p[1]-1,+p[2]+6);return periodo(a,b)}
+// Avaliação semanal: a semana vai de domingo a sábado. O questionário de uma semana abre no sábado e fica aberto até a segunda seguinte.
+function semanaAvaliavel(){
+  var h=hoje(), dow=new Date().getDay(), cur=domingoDe(h), prev=somaDias(cur,-7);
+  if(S.demo){if(!S.semanais[prev]&&S.treinos.some(function(x){return x.data>=prev&&x.data<cur}))return prev;return S.semanais[cur]?null:cur}
+  if(dow===6&&!S.semanais[cur])return cur;
+  if((dow===0||dow===1)&&!S.semanais[prev])return prev;
+  return null;
+}
+function semanaRespondidaRecente(){var cur=domingoDe(hoje()),prev=somaDias(cur,-7),dow=new Date().getDay();if(S.demo){if(S.semanais[cur])return cur;if(S.semanais[prev])return prev;return null}if(S.semanais[cur])return cur;if((dow===0||dow===1)&&S.semanais[prev])return prev;return null}
 function isoWeek(d){var t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));var day=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-day);var y=t.getUTCFullYear();var w=Math.ceil(((t-Date.UTC(y,0,1))/86400000+1)/7);return y+'-W'+pad(w)}
 var DIAS=['dom','seg','ter','qua','qui','sex','sáb'];
 var MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -285,26 +298,27 @@ async function init(){
   db.collection(base+'/obs').onSnapshot(function(q){var m={};q.docs.forEach(function(d){m[d.id]=d.data()});S.obs=m;render()});
 }
 function semanaExemplo(){
-  var base='registros/'+S.uid, hojeD=new Date();
-  var plano=[[6,6.0,'rodagem',4,null],[5,null,null,null,'descanso'],[4,5.2,'rodagem',5,{4:1}],[3,7.0,'intervalado',7,{4:2,3:1}],[2,null,null,null,'descanso'],[1,8.0,'longo',6,{5:1,4:3,3:2}]];
-  [[13,5.0,'rodagem',4],[11,6.0,'rodagem',5],[9,10.0,'longo',6],[8,5.0,'intervalado',7]].forEach(function(p,i){
-    var d=new Date(); d.setDate(hojeD.getDate()-p[0]);
-    S.db.collection(base+'/treinos').add({data:isoLocal(d),criadoEm:new Date(d.getTime()-i).toISOString(),descanso:false,distanciaKm:p[1],tempoMin:Math.round(p[1]*5.7),tipo:p[2],esforco:p[3],desconforto:false});
-  });
-  var semAnt=new Date(); semAnt.setDate(hojeD.getDate()-7);
-  S.db.doc(base+'/semanal/'+isoWeek(semAnt)).set({semana:isoWeek(semAnt),respostas:[0,1,0,1],pontos:[0,6,0,8],gravidade:14,instrumento:'OSTRC-BR',criadoEm:semAnt.toISOString()});
-  plano.forEach(function(p,i){
-    var d=new Date(); d.setDate(hojeD.getDate()-p[0]);
-    var t={data:isoLocal(d),criadoEm:new Date(d.getTime()-i).toISOString()};
-    if(p[4]==='descanso'){t.descanso=true;t.desconforto=false}
+  var base='registros/'+S.uid, w0=domingoDe(hoje()), w1=somaDias(w0,-7), w2=somaDias(w0,-14), hj=hoje(), n=0;
+  function add(dia,km,tipo,esf,faixas,extra){
+    if(dia>hj)return;
+    var t={data:dia,criadoEm:new Date(isoToDate(dia).getTime()+43200000+(n++)).toISOString()};
+    if(km==null){t.descanso=true;t.desconforto=false}
     else{
-      t.descanso=false;t.distanciaKm=p[1];t.tempoMin=Math.round(p[1]*5.7);t.tipo=p[2];t.esforco=p[3];t.desconforto=!!p[4];
-      if(p[4]){var mx=Math.max.apply(null,Object.keys(p[4]).map(function(k){return p[4][k]}));t.quando='durante';t.mudouTreino=mx===3?'reduzi':'nao';t.pernas={dir:{faixas:p[4],dor:[0,2,5,7][mx],caminhar:'nao',inicio:i===2?'gradual':null}}}
+      t.descanso=false;t.distanciaKm=km;t.tempoMin=Math.round(km*5.7);t.tipo=tipo;t.esforco=esf;t.desconforto=!!faixas;
+      if(faixas){var mx=Math.max.apply(null,Object.keys(faixas).map(function(k){return faixas[k]}));t.quando='durante';t.mudouTreino=mx===3?'reduzi':'nao';t.pernas={dir:Object.assign({faixas:faixas,dor:[0,2,5,7][mx],caminhar:'nao',inicio:null},extra||{})}}
     }
     S.db.collection(base+'/treinos').add(t);
-  });
-  var ontem=new Date(); ontem.setDate(hojeD.getDate()-1);
-  S.db.collection(base+'/mensagens').add({texto:'Vi que o desconforto na sua tíbia direita aumentou nos últimos treinos. Vamos avaliar na sessão de quinta. Até lá, faça só rodagens leves. (Mensagem de exemplo)',criadoEm:ontem.toISOString()});
+  }
+  // duas semanas atrás: sem desconforto (base de comparação)
+  add(somaDias(w2,1),5.0,'rodagem',4);add(somaDias(w2,3),6.0,'rodagem',5);add(somaDias(w2,5),5.0,'intervalado',7);add(somaDias(w2,6),10.0,'longo',6);
+  S.db.doc(base+'/semanal/'+w2).set({semana:w2,inicio:w2,fim:somaDias(w2,6),respostas:[0,1,0,1],pontos:[0,6,0,8],gravidade:14,instrumento:'OSTRC-BR',criadoEm:isoToDate(somaDias(w2,6)).toISOString()});
+  // semana passada: desconforto na tíbia direita que piora
+  add(w1,null);add(somaDias(w1,1),6.0,'rodagem',4);add(somaDias(w1,2),null);
+  add(somaDias(w1,3),5.2,'rodagem',5,{4:1},{inicio:'gradual'});add(somaDias(w1,4),7.0,'intervalado',7,{4:2,3:1});
+  add(somaDias(w1,5),null);add(somaDias(w1,6),8.0,'longo',6,{5:1,4:3,3:2});
+  // esta semana, até hoje
+  add(w0,5.0,'rodagem',3,{4:1});
+  S.db.collection(base+'/mensagens').add({texto:'Vi que o desconforto na sua tíbia direita aumentou na semana passada. Vamos avaliar na próxima sessão. Até lá, faça só rodagens leves. (Mensagem de exemplo)',criadoEm:new Date().toISOString()});
 }
 async function salvar(path,dados,depois){
   if(!S.db||!S.uid){S.error='Sem conexão com o armazenamento. Abra o app pelo link do claude.ai, com sua conta.';render();return}
@@ -338,7 +352,7 @@ function telaConsentimento(){
 function registroDeHoje(){var h=hoje();return S.treinos.filter(function(t){return t.data===h})}
 
 function telaHoje(){
-  var d=new Date(), regs=registroDeHoje(), sem=isoWeek(d), resp=S.semanais[sem];
+  var d=new Date(), regs=registroDeHoje(), pend=semanaAvaliavel(), resp=semanaRespondidaRecente();
   var hero;
   if(regs.length){
     var ultimo=regs[0];
@@ -348,9 +362,10 @@ function telaHoje(){
     hero='<div class="card hero"><h2>Treinou hoje?</h2><p>Leva menos de 1 minuto. Registre logo depois do treino, enquanto a sensação está fresca.</p>'+
     '<button class="btn" data-act="novo">Registrar treino de hoje</button><button class="btn ghost" data-act="descanso"'+(S.saving?' disabled':'')+'>Hoje foi descanso</button></div>';
   }
-  var weekly=resp?
-    '<button class="card weekly done" data-act="go" data-to="relatorio"><div class="linkrow"><span class="eyebrow">Avaliação semanal (OSTRC-BR)</span><span class="chip">respondida</span></div><h2 style="font-size:17px">Ver relatório da semana</h2><p class="lead">Mostre na consulta ou exporte em PDF. A próxima avaliação abre na segunda-feira.</p></button>':
-    '<button class="card weekly" data-act="semIntro"><div class="linkrow"><span class="eyebrow">Avaliação semanal (OSTRC-BR)</span><span class="chip on">disponível</span></div><h2 style="font-size:17px">Como foi sua semana de treinos?</h2><p class="lead">4 perguntas, cerca de 1 minuto. Responda até domingo.</p></button>';
+  var weekly;
+  if(pend) weekly='<button class="card weekly" data-act="semIntro" data-v="'+pend+'"><div class="linkrow"><span class="eyebrow">Avaliação semanal (OSTRC-BR)</span><span class="chip on">disponível</span></div><h2 style="font-size:17px">Como foi sua semana de '+rotuloSemana(pend)+'?</h2><p class="lead">4 perguntas, cerca de 1 minuto.'+(S.demo?' Na demonstração, fica aberta todos os dias.':' Aberta até segunda-feira.')+'</p></button>';
+  else if(resp) weekly='<button class="card weekly done" data-act="relSemana" data-v="'+resp+'"><div class="linkrow"><span class="eyebrow">Avaliação semanal (OSTRC-BR)</span><span class="chip">respondida</span></div><h2 style="font-size:17px">Ver relatório da semana de '+rotuloSemana(resp)+'</h2><p class="lead">Mostre na consulta ou exporte em PDF.</p></button>';
+  else weekly='<div class="card weekly done"><div class="linkrow"><span class="eyebrow">Avaliação semanal (OSTRC-BR)</span><span class="chip">abre no sábado</span></div><p class="lead">A semana vai de domingo a sábado. A avaliação desta semana ('+rotuloSemana(domingoDe(hoje()))+') abre no sábado e fica aberta até segunda-feira.</p></div>';
   return '<section class="screen" style="display:flex;flex-direction:column;gap:16px">'+
     '<div class="head"><p class="eyebrow">'+dataLonga(d)+'</p><h1>Olá</h1></div>'+
     '<div class="banner"><strong>Demonstração.</strong> O que você registrar fica só neste aparelho e não vai para nenhuma clínica.</div>'+
@@ -472,7 +487,7 @@ function telaSemIntro(){
   var temas=['Participação nos treinos e competições','Redução do volume de treino','Efeito no desempenho','Intensidade dos sintomas'];
   return '<section class="screen" style="display:flex;flex-direction:column;gap:16px">'+
   '<div class="head"><p class="eyebrow">Avaliação semanal (OSTRC-BR)</p><h1>Como foi sua semana de treinos?</h1></div>'+
-  '<p style="color:var(--ink2)">São 4 perguntas sobre como desconfortos, dores ou outros problemas de saúde afetaram seus treinos nos últimos 7 dias.</p>'+
+  '<p style="color:var(--ink2)">Semana de '+rotuloSemana(S.semAlvo||domingoDe(hoje()))+' (domingo a sábado). São 4 perguntas sobre como desconfortos, dores ou outros problemas de saúde afetaram seus treinos nessa semana.</p>'+
   '<div class="card">'+temas.map(function(t,i){return '<div style="display:flex;align-items:center;gap:12px"><span style="width:32px;height:32px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--gold-ink);flex-shrink:0">'+(i+1)+'</span><p>'+t+'</p></div>'}).join('')+'</div>'+
   '<div class="banner"><p style="font-weight:700;margin-bottom:4px">Sobre este questionário</p><p>É a versão brasileira validada (OSTRC-BR) do questionário do Oslo Sports Trauma Research Center, usado no mundo todo para acompanhar a saúde de atletas.</p><p style="font-size:12px;color:var(--muted);margin-top:6px">Pimenta RM, Hespanhol L, Lopes AD. Braz J Phys Ther, 2021.</p></div>'+
   '<div class="row"><button class="btn ghost" data-act="go" data-to="hoje">Agora não</button><button class="btn" data-act="semComecar">Começar</button></div></section>'
@@ -485,7 +500,7 @@ function telaSemQ(){
   var ult=i===OSTRC.length-1;
   return '<section class="screen" style="display:flex;flex-direction:column;gap:16px">'+
   '<div class="head"><p class="eyebrow">Avaliação semanal (OSTRC-BR)</p><h1>Pergunta '+(i+1)+' de 4</h1></div>'+bar+
-  '<div class="head"><h2>'+q.q+'</h2><p class="lead">Considere os últimos 7 dias.</p></div>'+
+  '<div class="head"><h2>'+q.q+'</h2><p class="lead">Considere a semana de '+rotuloSemana(S.semAlvo)+'.</p></div>'+
   '<div style="display:flex;flex-direction:column;gap:8px" role="group">'+opts+'</div>'+
   (S.error?'<p class="err" role="alert">'+esc(S.error)+'</p>':'')+
   '<p class="note">Texto oficial do OSTRC-BR inserido após autorização dos autores.</p>'+
@@ -499,9 +514,9 @@ function miniLeg(f){
 }
 function periodo(a,b){return a.getMonth()===b.getMonth()?a.getDate()+' a '+b.getDate()+' de '+MESES[b.getMonth()]:a.getDate()+' de '+MESES[a.getMonth()]+' a '+b.getDate()+' de '+MESES[b.getMonth()]}
 function telaSemana(){
-  var hojeD=new Date(), dias=[];
-  for(var k=6;k>=0;k--){var d=new Date();d.setDate(hojeD.getDate()-k);dias.push(d)}
-  var ini=isoLocal(dias[0]), fim=isoLocal(dias[6]);
+  var semIni=S.semIni||domingoDe(hoje()), atual=domingoDe(hoje()), dias=[];
+  for(var k=0;k<7;k++)dias.push(isoToDate(somaDias(semIni,k)));
+  var ini=semIni, fim=somaDias(semIni,6), hj=hoje();
   var regs=S.treinos.filter(function(t){return t.data>=ini&&t.data<=fim});
   var totalKm=0, treinos=0, comDor=0, agg={dir:{},esq:{}}, piorDor={dir:null,esq:null};
   var cel=dias.map(function(d){
@@ -515,8 +530,9 @@ function telaSemana(){
       lv=Math.max(lv,m);
     });
     totalKm+=km;
-    var cls=lv>=0?'l'+lv:(desc?'rest':'');
-    var lab=lv>=0?NIVEL[lv]:(desc?'descanso':'sem registro');
+    var fut=iso>hj;
+    var cls=lv>=0?'l'+lv:(desc?'rest':(fut?'fut':''));
+    var lab=lv>=0?NIVEL[lv]:(desc?'descanso':(fut?'ainda não chegou':'sem registro'));
     return '<div class="day"><span>'+DIAS[d.getDay()]+'<br><b style="color:var(--ink);font-size:13px">'+d.getDate()+'</b></span><span class="p '+cls+'" role="img" aria-label="'+DIAS[d.getDay()]+': '+lab+'"></span><span class="km">'+(km?fmtKm(km):'–')+'</span></div>'
   }).join('');
   var pernasDor=['esq','dir'].filter(function(p){return Object.keys(agg[p]).length});
@@ -527,9 +543,10 @@ function telaSemana(){
     '<div class="card"><h2 style="font-size:17px">Nenhum treino registrado nesta semana</h2><p class="lead">Registre o próximo treino logo depois de terminar.</p><button class="btn" data-act="novo">Registrar treino</button></div>');
   var msg=S.msg?'<div class="card"><p class="eyebrow">Mensagem da clínica</p><p id="msgtxt"></p><p class="lead" style="font-size:12px" id="msgdata"></p></div>':'';
   return '<section class="screen" style="display:flex;flex-direction:column;gap:16px">'+
-  '<div class="head"><p class="eyebrow">Minha semana</p><div class="linkrow"><h1>Últimos 7 dias</h1><span style="font-weight:700;color:var(--muted)">'+fmtKm(totalKm)+' km</span></div><p class="lead">'+periodo(dias[0],dias[6])+'</p></div>'+
+  '<div class="head"><p class="eyebrow">Minha semana · domingo a sábado</p><div class="linkrow"><h1>'+(semIni===atual?'Esta semana':(semIni===somaDias(atual,-7)?'Semana passada':'Semana'))+'</h1><span style="font-weight:700;color:var(--muted)">'+fmtKm(totalKm)+' km</span></div>'+
+  '<div class="linkrow"><button class="btn ghost" data-act="semNav" data-v="-1" style="min-height:44px;width:auto;font-size:14px;padding:0 14px" aria-label="Semana anterior">‹ Anterior</button><p style="font-weight:700">'+periodo(dias[0],dias[6])+'</p><button class="btn ghost" data-act="semNav" data-v="1" style="min-height:44px;width:auto;font-size:14px;padding:0 14px" aria-label="Próxima semana"'+(semIni>=atual?' disabled':'')+'>Próxima ›</button></div></div>'+
   '<div class="card"><div class="days">'+cel+'</div><div class="legend"><span><i style="background:var(--surface);border:1px solid var(--faint)"></i>sem desconforto</span><span><i style="background:var(--p1)"></i>leve</span><span><i style="background:var(--p2)"></i>moderado</span><span><i style="background:var(--p3)"></i>forte</span><span><i style="background:var(--chip)"></i>descanso</span></div></div>'+
-  mapa+msg+'<button class="btn ghost" data-act="go" data-to="relatorio">Ver relatório da semana</button></section>'
+  mapa+msg+'<button class="btn ghost" data-act="relSemana" data-v="'+semIni+'">Ver relatório desta semana</button></section>'
 }
 
 // ---------- relatório semanal ----------
@@ -538,20 +555,21 @@ function addDias(iso,n){var x=isoToDate(iso);x.setDate(x.getDate()+n);return iso
 function janela(fim,n){var a=[];for(var k=n-1;k>=0;k--)a.push(addDias(fim,-k));return a}
 function cargaDe(t){return (num(t.tempoMin)||0)*(t.esforco||0)}
 function nivelRegistro(t){var m=0;['dir','esq'].forEach(function(p){if(t.pernas&&t.pernas[p]){var f=t.pernas[p].faixas||{};Object.keys(f).forEach(function(n){m=Math.max(m,f[n])})}});return m}
-function fimRelatorio(){var r=S.semanais[isoWeek(new Date())];if(r&&r.criadoEm){var d=new Date(r.criadoEm);if(!isNaN(d))return isoLocal(d)}return hoje()}
+function semRelatorio(){return S.relSem||semanaRespondidaRecente()||domingoDe(hoje())}
 function fmtMin(m){m=Math.round(m||0);var h=Math.floor(m/60),r=m%60;return h?h+' h '+pad(r)+' min':r+' min'}
 function diaCurto(iso){var d=isoToDate(iso);return DIAS[d.getDay()]+' '+d.getDate()}
 function ostrcSubstancial(o){if(!o||!o.respostas)return false;var r=o.respostas;return r[0]===3||r[1]>=2||r[2]>=2}
 var TIPO_NOME={rodagem:'Rodagem',intervalado:'Intervalado',longo:'Longo',prova:'Prova'};
 
-function relDados(fim){
-  var dias=janela(fim,7), ini=dias[0];
+function relDados(ini){
+  var fim=somaDias(ini,6), dias=janela(fim,7), hj=hoje();
   var noIntervalo=function(a,b){return S.treinos.filter(function(t){return t.data>=a&&t.data<=b})};
   var regs=noIntervalo(ini,fim).slice().sort(function(a,b){return a.data<b.data?-1:a.data>b.data?1:0});
   var treinos=regs.filter(function(t){return !t.descanso});
   var R={fim:fim,ini:ini,dias:dias,regs:regs,treinos:treinos};
   R.descansos=regs.length-treinos.length;
   R.diasReg=dias.filter(function(d){return regs.some(function(t){return t.data===d})}).length;
+  R.diasPossiveis=dias.filter(function(d){return d<=hj}).length;
   R.km=treinos.reduce(function(s,t){return s+(num(t.distanciaKm)||0)},0);
   R.tempo=treinos.reduce(function(s,t){return s+(num(t.tempoMin)||0)},0);
   R.carga=treinos.reduce(function(s,t){return s+cargaDe(t)},0);
@@ -563,7 +581,7 @@ function relDados(fim){
   R.maior28=ant.length?ant.reduce(function(m,t){return Math.max(m,num(t.tempoMin)||0)},0):null;
   R.porDia=dias.map(function(d){
     var rs=regs.filter(function(t){return t.data===d});
-    var o={iso:d,registrado:rs.length>0,descanso:rs.some(function(t){return t.descanso}),km:0,tempo:0,carga:0,nivel:-1};
+    var o={iso:d,futuro:d>hj,registrado:rs.length>0,descanso:rs.some(function(t){return t.descanso}),km:0,tempo:0,carga:0,nivel:-1};
     rs.forEach(function(t){if(t.descanso)return;o.km+=num(t.distanciaKm)||0;o.tempo+=num(t.tempoMin)||0;o.carga+=cargaDe(t);o.nivel=Math.max(o.nivel,nivelRegistro(t))});
     return o;
   });
@@ -575,9 +593,9 @@ function relDados(fim){
   });
   R.comDor=treinos.filter(function(t){return t.desconforto}).length;
   R.modificados=treinos.filter(function(t){return t.mudouTreino==='reduzi'||t.mudouTreino==='parei'}).length;
-  R.semId=isoWeek(isoToDate(fim));
-  R.ost=S.semanais[R.semId]||null;
-  R.ostPrev=S.semanais[isoWeek(isoToDate(addDias(fim,-7)))]||null;
+  R.semId=ini;
+  R.ost=S.semanais[ini]||null;
+  R.ostPrev=S.semanais[addDias(ini,-7)]||null;
   R.substancial=ostrcSubstancial(R.ost);
   // pontos para conversar com a fisioterapia (descritivos, sem interpretação clínica)
   var P=[];
@@ -608,6 +626,7 @@ function graficoSemana(R){
     var cy=120;
     if(d.nivel>=0)h+='<circle cx="'+(x+15)+'" cy="'+cy+'" r="8" fill="'+cores[d.nivel]+'" stroke="'+(d.nivel===0?'#8A9486':'none')+'" stroke-width="1.5"></circle>';
     else if(d.descanso)h+='<circle cx="'+(x+15)+'" cy="'+cy+'" r="8" fill="#EDE9DF"></circle>';
+    else if(d.futuro)h+='<circle cx="'+(x+15)+'" cy="'+cy+'" r="8" fill="none" stroke="#E4E1D8" stroke-dasharray="1 3"></circle>';
     else h+='<circle cx="'+(x+15)+'" cy="'+cy+'" r="8" fill="none" stroke="#CBCAC0" stroke-dasharray="3 3"></circle>';
     var dd=isoToDate(d.iso);
     h+='<text x="'+(x+15)+'" y="146" text-anchor="middle" font-size="10" font-weight="700" fill="#566352" font-family="Manrope, sans-serif">'+DIAS[dd.getDay()]+'</text><text x="'+(x+15)+'" y="160" text-anchor="middle" font-size="11" font-weight="800" fill="#233122" font-family="Manrope, sans-serif">'+dd.getDate()+'</text>';
@@ -628,17 +647,17 @@ function relHtml(R,versao,pdf){
   var h='';
   h+='<div class="blk relhead"><p class="eyebrow">Relatório da semana · '+(completa?'versão completa':'versão do atleta')+'</p><h1>'+periodo(a,b)+'</h1>'+
      '<p class="lead">Atleta: '+esc(S.nome||'—')+' · Gerado em '+g.getDate()+' de '+MESES[g.getMonth()]+' de '+g.getFullYear()+'</p>'+
-     '<p class="lead">Registros em '+R.diasReg+' de 7 dias'+(R.diasReg<5?'. Com poucos dias registrados, o resumo pode não representar a semana.':'.')+'</p></div>';
+     '<p class="lead">Semana de domingo a sábado. Registros em '+R.diasReg+' de '+R.diasPossiveis+' dia'+(R.diasPossiveis===1?'':'s')+(R.diasPossiveis<7?' até hoje':'')+(R.diasReg<5&&R.diasPossiveis===7?'. Com poucos dias registrados, o resumo pode não representar a semana.':'.')+'</p></div>';
   if(!pdf)h+='<div class="seg" role="group" aria-label="Versão do relatório"><button type="button" data-act="relVersao" data-v="atleta" aria-pressed="'+pressed(!completa)+'">Versão do atleta</button><button type="button" data-act="relVersao" data-v="completa" aria-pressed="'+pressed(completa)+'">Versão completa</button></div>';
   var tile=function(v,l){return '<div class="tile"><b>'+v+'</b><span>'+l+'</span></div>'};
   h+='<div class="blk card"><div class="tiles">'+tile(R.treinos.length,'treino'+(R.treinos.length===1?'':'s'))+tile(fmtKm(R.km)+' km','distância')+tile(fmtMin(R.tempo),'tempo total')+tile(R.comDor+' de '+R.treinos.length,'treinos com desconforto')+'</div></div>';
-  h+='<div class="blk card"><h2 style="font-size:17px">Dia a dia</h2>'+graficoSemana(R)+'<p class="lead" style="font-size:12px">Barras: carga do treino (tempo × esforço). Círculos: maior desconforto marcado no dia (branco sem desconforto, pêssego leve, damasco moderado, terracota forte; cinza descanso; tracejado sem registro).</p></div>';
+  h+='<div class="blk card"><h2 style="font-size:17px">Dia a dia</h2>'+graficoSemana(R)+'<p class="lead" style="font-size:12px">Barras: carga do treino (tempo × esforço). Círculos: maior desconforto marcado no dia (branco sem desconforto, pêssego leve, damasco moderado, terracota forte; cinza descanso; tracejado sem registro; pontilhado dias que ainda não chegaram).</p></div>';
   var ps=Object.keys(R.pernas);
   h+='<div class="blk card"><h2 style="font-size:17px">Onde doeu</h2>'+(ps.length?ps.map(function(p){var x=R.pernas[p];return '<div style="display:flex;gap:14px;align-items:center">'+pernaRel(x.agg)+'<div><p style="font-weight:700">'+NOME_PERNA[p]+'</p><p class="lead" style="font-size:13px">'+resumoFaixas(x.agg)+'</p><p class="lead" style="font-size:13px">Desconforto em '+x.dias+' treino'+(x.dias>1?'s':'')+(x.pior!=null?' · pior nota: '+x.pior+' de 10':'')+'</p></div></div>'}).join(''):'<p class="lead">Nenhum desconforto registrado nesta semana.</p>')+'</div>';
   var ost=R.ost;
   h+='<div class="blk card"><h2 style="font-size:17px">Avaliação semanal (OSTRC-BR)</h2>'+(ost?
      '<p><span style="font-family:Nunito,Manrope,sans-serif;font-weight:800;font-size:30px;color:var(--p3)">'+ost.gravidade+'</span> <span class="lead">de 100 no escore de gravidade</span></p>'+
-     '<p class="lead" style="font-size:13px">'+(R.ostPrev?'Semana anterior: '+R.ostPrev.gravidade+' de 100.':'Sem avaliação na semana anterior para comparar.')+'</p>'+
+     '<p class="lead" style="font-size:13px">'+(R.ostPrev?'Semana anterior ('+rotuloSemana(addDias(R.ini,-7))+'): '+R.ostPrev.gravidade+' de 100.':'Sem avaliação na semana anterior para comparar.')+'</p>'+
      (completa?'<p class="lead" style="font-size:13px">Respostas: '+ost.respostas.map(function(r,i){return 'P'+(i+1)+' opção '+(r+1)+' ('+ost.pontos[i]+' pts)'}).join(' · ')+'</p><p style="font-size:13px;font-weight:700">'+(R.substancial?'Problema substancial: sim (redução moderada ou grave de volume ou desempenho, ou sem conseguir treinar).':'Problema substancial: não.')+'</p>':'')
      :'<p class="lead">O questionário desta semana ainda não foi respondido.</p>')+'</div>';
   if(completa){
@@ -666,7 +685,7 @@ function relHtml(R,versao,pdf){
   return h;
 }
 function telaRelatorio(){
-  var R=relDados(fimRelatorio());
+  var R=relDados(semRelatorio());
   return '<section class="screen" style="display:flex;flex-direction:column;gap:16px">'+relHtml(R,S.rel.versao,false)+
     (S.error?'<p class="err" role="alert">'+esc(S.error)+'</p>':'')+
     (S.relMsg?'<p class="note" role="status">'+esc(S.relMsg)+'</p>':'')+
@@ -690,7 +709,7 @@ async function exportarPDF(){
   try{
     if(!window.html2canvas)await carregarScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
     if(!window.jspdf)await carregarScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
-    var R=relDados(fimRelatorio()), versao=S.rel.versao;
+    var R=relDados(semRelatorio()), versao=S.rel.versao;
     root.setAttribute('data-theme','light');
     box=document.createElement('div');
     box.className='relpdf';
@@ -715,7 +734,7 @@ async function exportarPDF(){
       pdfDoc.addImage(pc.toDataURL('image/jpeg',0.92),'JPEG',10,10,190,(y1-y0)*190/W);
       pdfDoc.setFontSize(8);pdfDoc.setTextColor(86,99,82);pdfDoc.text('Página '+(i+1)+' de '+fin.length,200,291,{align:'right'});
     });
-    var nome='relatorio-semana-'+R.fim+'-'+(versao==='completa'?'completo':'atleta')+'.pdf';
+    var nome='relatorio-semana-'+R.ini+'-a-'+R.fim+'-'+(versao==='completa'?'completo':'atleta')+'.pdf';
     var st=await salvarArquivo(nome,pdfDoc.output('blob'));
     S.relMsg=st==='salvo'?'PDF gerado: '+nome:(st==='recusado'?'Download cancelado.':'Já existe um download aguardando confirmação.');
   }catch(e){
@@ -756,7 +775,7 @@ function ir(scr){S.screen=scr;S.error='';render();window.scrollTo(0,0)}
 // ---------- eventos ----------
 app.addEventListener('change',function(e){
   if(e.target.id==='relObs'){
-    var sid=relDados(fimRelatorio()).semId, txt=e.target.value.slice(0,1000);
+    var sid=semRelatorio(), txt=e.target.value.slice(0,1000);
     if(((S.obs[sid]&&S.obs[sid].texto)||'')===txt)return;
     S.db&&S.uid&&S.db.doc('registros/'+S.uid+'/obs/'+sid).set({texto:txt,criadoEm:new Date().toISOString()}).catch(function(){S.error='Não foi possível salvar a observação.';render()});
   }
@@ -776,13 +795,13 @@ document.addEventListener('click',function(e){
   var b=e.target.closest('[data-act]'); if(!b||b.disabled)return;
   var a=b.dataset.act, v=b.dataset.v, p=b.dataset.p, d=S.draft;
   switch(a){
-    case 'go': ir(b.dataset.to); break;
+    case 'go': if(b.dataset.to==='semana'&&b.classList.contains('tab'))S.semIni=null; ir(b.dataset.to); break;
     case 'aceitar':
       salvar('registros/'+S.uid,{consentimento:true,demo:true},function(){S.screen='hoje'});
       break;
     case 'novo': S.draft=novoDraft(); ir('reg1'); break;
     case 'novoOutroDia': S.draft=novoDraft(); S.draft.data=diasAtras(1); ir('reg1'); break;
-    case 'exemplo': semanaExemplo(); ir('semana'); break;
+    case 'exemplo': semanaExemplo(); S.semIni=somaDias(domingoDe(hoje()),-7); ir('semana'); break;
     case 'limpar':
       if(window.confirm('Apagar todos os registros desta demonstração neste aparelho?')){S.db.reset();S.screen='hoje';S.draft=null;S.sem=null;render()}
       break;
@@ -820,7 +839,9 @@ document.addEventListener('click',function(e){
     case 'enviar':
       if(registroNaData(d.data))return;
       salvar('registros/'+S.uid+'/treinos',montarTreino(true),function(){S.draft=null;S.screen='feito'}); break;
-    case 'semIntro': ir('semIntro'); break;
+    case 'semIntro': S.semAlvo=v||semanaAvaliavel()||domingoDe(hoje()); ir('semIntro'); break;
+    case 'relSemana': S.relSem=v; S.rel.versao=S.rel.versao||'atleta'; S.relMsg=''; ir('relatorio'); break;
+    case 'semNav': S.semIni=somaDias(S.semIni||domingoDe(hoje()),+v*7); render(); break;
     case 'relVersao': S.rel.versao=v; S.relMsg=''; render(); break;
     case 'exportar': exportarPDF(); break;
     case 'semComecar': S.sem={i:0,r:[null,null,null,null]}; ir('semQ'); break;
@@ -829,8 +850,8 @@ document.addEventListener('click',function(e){
     case 'semProx':
       if(S.sem.i<OSTRC.length-1){S.sem.i++; render(); window.scrollTo(0,0); break}
       var pts=S.sem.r.map(function(k,i){return OSTRC[i].pts[k]});
-      var sem=isoWeek(new Date());
-      salvar('registros/'+S.uid+'/semanal/'+sem,{semana:sem,respostas:S.sem.r.slice(),pontos:pts,gravidade:pts.reduce(function(a,b){return a+b},0),instrumento:'OSTRC-BR'},function(){S.sem=null;S.screen='relatorio';S.relMsg=''});
+      var sem=S.semAlvo||domingoDe(hoje());
+      salvar('registros/'+S.uid+'/semanal/'+sem,{semana:sem,inicio:sem,fim:somaDias(sem,6),respostas:S.sem.r.slice(),pontos:pts,gravidade:pts.reduce(function(a,b){return a+b},0),instrumento:'OSTRC-BR'},function(){S.sem=null;S.relSem=sem;S.screen='relatorio';S.relMsg=''});
       break;
   }
 });
