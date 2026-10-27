@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Acompanhamento da tíbia · demonstração</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Nunito:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F5F3EC; --surface:#FFFFFF; --ink:#233122; --ink2:#3F4B3C; --muted:#566352; --faint:#8A9486;
+  --line:#E4E1D8; --line2:#D9D6CC; --gold:#B8893A; --gold-ink:#8A6224; --chip:#EDE9DF;
+  --primary:#233122; --on-primary:#FFFFFF; --legbg:#F5F3EC;
+  --p1:#F7D9C8; --p2:#EDA27C; --p3:#B5532D; --t1:#5A2410; --t2:#4A1E0C; --t3:#FFFFFF;
+  --err:#9B2C1E;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#151C14; --surface:#1F281E; --ink:#ECEFE8; --ink2:#D3D9CF; --muted:#AAB3A6; --faint:#879183;
+    --line:#2F3A2D; --line2:#3D4A3A; --gold:#D4A65A; --gold-ink:#D9B26C; --chip:#2A3428;
+    --primary:#ECEFE8; --on-primary:#151C14; --legbg:#E9EDE4; --err:#F09A8A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#151C14; --surface:#1F281E; --ink:#ECEFE8; --ink2:#D3D9CF; --muted:#AAB3A6; --faint:#879183;
+  --line:#2F3A2D; --line2:#3D4A3A; --gold:#D4A65A; --gold-ink:#D9B26C; --chip:#2A3428;
+  --primary:#ECEFE8; --on-primary:#151C14; --legbg:#E9EDE4; --err:#F09A8A;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Manrope',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+h1,h2{font-family:'Nunito','Manrope',system-ui,sans-serif;font-weight:800;margin:0;color:var(--ink)}
+h1{font-size:26px;line-height:1.15}
+h2{font-size:19px;line-height:1.25}
+p{margin:0}
+button{font-family:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.app{max-width:480px;margin:0 auto;padding:24px 20px 112px;display:flex;flex-direction:column;gap:16px;min-height:100%}
+.head{display:flex;flex-direction:column;gap:6px}
+.eyebrow{font-size:13px;font-weight:700;color:var(--gold-ink)}
+.lead{font-size:14px;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.hero{background:var(--primary);color:var(--on-primary);border:none}
+.hero h2{color:var(--on-primary);font-size:21px}
+.hero p{color:var(--on-primary);opacity:.82;font-size:14px}
+.btn{min-height:52px;border-radius:14px;border:none;background:var(--primary);color:var(--on-primary);font-size:16px;font-weight:700;width:100%;display:flex;align-items:center;justify-content:center;padding:0 16px}
+.btn[disabled]{opacity:.4;cursor:not-allowed}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line2)}
+.hero .btn{background:var(--on-primary);color:var(--primary)}
+.hero .btn.ghost{background:transparent;color:var(--on-primary);border:1px solid rgba(255,255,255,.35)}
+:root[data-theme="dark"] .hero .btn.ghost{border-color:rgba(0,0,0,.3)}
+.row{display:flex;gap:10px}
+.row>.btn{flex:1}
+.lbl{font-size:14px;font-weight:700;margin-bottom:8px;display:block}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1 1 0;min-width:0;min-height:44px;padding:6px 8px;border-radius:10px;border:1px solid var(--line2);background:var(--surface);font-size:14px;font-weight:600;line-height:1.2}
+.seg button[aria-pressed="true"]{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.scale{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:3px}
+.scale button{height:44px;border-radius:8px;border:1px solid var(--line2);background:var(--surface);font-size:13px;font-weight:700;padding:0}
+.scale button[aria-pressed="true"]{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.scale.pain button[aria-pressed="true"]{background:var(--p3);border-color:var(--p3);color:#fff}
+.ends{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
+.field{display:flex;flex-direction:column;gap:6px;flex:1}
+.field label{font-size:13px;font-weight:600;color:var(--muted)}
+.field input{height:48px;border-radius:10px;border:1px solid var(--line2);background:var(--surface);color:var(--ink);padding:0 12px;font-family:inherit;font-size:18px;font-weight:700;width:100%}
+.chip{font-size:12px;font-weight:700;color:var(--muted);background:var(--chip);border-radius:999px;padding:4px 10px;white-space:nowrap}
+.chip.on{background:var(--gold-ink);color:#fff}
+.weekly{border:2px solid var(--gold);text-align:left;width:100%;font-size:inherit}
+.weekly.done{border:1px solid var(--line)}
+.linkrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.foot{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:var(--muted);margin-top:8px}
+.foot .credit{font-size:11px;font-weight:600;color:var(--faint)}
+.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:6px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center;z-index:5}
+.tabs .in{display:flex;max-width:480px;width:100%}
+.tab{flex:1;min-height:48px;border:none;background:transparent;font-size:12px;font-weight:700;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+.tab[aria-current="page"]{color:var(--ink)}
+.bar{display:flex;gap:6px}
+.bar span{flex:1;height:6px;border-radius:3px;background:var(--line2)}
+.bar span.on{background:var(--gold)}
+.pin{display:flex;gap:6px}
+.pin button{flex:1;min-width:0;min-height:44px;padding:0 4px;border-radius:10px;border:1px solid var(--line2);background:var(--surface);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px}
+.pin button[aria-pressed="true"]{border:2px solid var(--ink)}
+.pin .sw{width:16px;height:12px;border-radius:6px;display:inline-block;flex-shrink:0}
+.pin button{font-size:12.5px}
+.legcard{background:var(--legbg);border-radius:16px;padding:12px 0;display:flex;justify-content:center;position:relative;overflow:hidden}
+.legcard .tag{position:absolute;left:14px;font-size:12px;font-weight:700;color:#566352}
+.legbox{position:relative;width:200px;height:520px}
+.legbox svg{position:absolute;inset:0;width:100%;height:100%}
+.band{position:absolute;left:-75px;width:350px;height:6.044%;border:none;background:transparent;padding:0}
+.band .pill{position:absolute;left:125.3px;width:64px;top:8%;height:84%;border-radius:999px;background:rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#566352}
+.band[data-l="1"] .pill{background:var(--p1);color:var(--t1);font-weight:800}
+.band[data-l="2"] .pill{background:var(--p2);color:var(--t2);font-weight:800}
+.band[data-l="3"] .pill{background:var(--p3);color:var(--t3);font-weight:800}
+.band:focus-visible{outline:none}
+.band:focus-visible .pill{outline:3px solid var(--gold);outline-offset:1px}
+.legtab{display:flex;flex-direction:column;align-items:center;gap:2px}
+.legtab small{font-size:12px;font-weight:600;opacity:.8}
+.opt{display:flex;align-items:center;gap:12px;min-height:56px;padding:12px 14px;border-radius:12px;border:1px solid var(--line2);background:var(--surface);font-size:15px;font-weight:600;text-align:left;width:100%}
+.opt .dot{width:20px;height:20px;border-radius:50%;border:2px solid var(--faint);flex-shrink:0}
+.opt[aria-pressed="true"]{border:2px solid var(--ink)}
+.opt[aria-pressed="true"] .dot{border:6px solid var(--ink)}
+.days{display:flex;gap:4px}
+.day{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--muted)}
+.day .p{width:28px;height:28px;border-radius:50%;border:1.5px dashed var(--line2)}
+.day .p.l0{border:1.5px solid var(--faint);background:var(--surface)}
+.day .p.l1{border:none;background:var(--p1)}
+.day .p.l2{border:none;background:var(--p2)}
+.day .p.l3{border:none;background:var(--p3)}
+.day .p.rest{border:none;background:var(--chip)}
+.day .km{color:var(--ink);font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:14px;height:10px;border-radius:5px;display:inline-block}
+.minis{display:flex;flex-direction:column;gap:12px}
+.mini{position:relative;width:46px;height:120px;background:var(--legbg);border-radius:10px;flex-shrink:0}
+.mini svg{position:absolute;inset:0;width:100%;height:100%}
+.note{font-size:12px;color:var(--muted);text-align:center}
+.banner{background:var(--chip);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--ink2)}
+.err{color:var(--err);font-size:13px;font-weight:600}
+.done-mark{width:64px;height:64px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;align-self:center;margin-top:24px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion: no-preference){
+  .screen{animation:in .18s ease-out}
+  @keyframes in{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:none}}
+}
+</style>
+</head>
+<body>
+<main class="app" id="app" aria-live="polite"></main>
+<nav class="tabs" id="tabs" aria-label="Navegação">
+  <div class="in">
+    <button class="tab" data-act="go" data-to="hoje"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>Hoje</button>
+    <button class="tab" data-act="go" data-to="semana"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>Minha semana</button>
+  </div>
+</nav>
+
+<template id="legsvg"><svg viewBox="15 248 175 455" aria-hidden="true"><path d="M40 120 L165 120 C168 180 156 230 150 260 C156 285 154 300 150 318 C156 400 150 470 136 540 C130 565 128 585 130 600 C140 620 156 640 160 668 C162 684 150 694 130 694 L72 694 C56 694 50 684 54 668 C58 645 70 620 78 600 C80 585 78 565 72 540 C52 480 40 400 50 320 C44 300 50 280 56 260 C46 230 38 180 40 120 Z" fill="#EEF0E8" stroke="#233122" stroke-width="2.2" stroke-linejoin="round"></path>
+<path d="M40 120 C38 140 40 150 42 152 L62 152 C64 136 70 126 78 120 Z" fill="#7A8C73" stroke="#233122" stroke-width="1.6" stroke-linejoin="round"></path>
+<path d="M118 120 C150 140 168 200 150 255 L132 258 C140 210 132 160 118 120 Z" fill="#7A8C73" stroke="#233122" stroke-width="1.6" stroke-linejoin="round"></path>
+<path d="M78 120 C76 170 84 220 94 252 L114 252 C122 210 124 160 120 120 Z" fill="#8FA088" stroke="#233122" stroke-width="1.6" stroke-linejoin="round"></path>
+<path d="M42 152 C36 200 48 245 72 262 C86 262 90 250 86 238 C70 220 60 190 62 152 Z" fill="#8FA088" stroke="#233122" stroke-width="1.6" stroke-linejoin="round"></path>
+<path d="M90 130 C90 170 96 210 102 244" stroke="#B9C6B2" stroke-width="1.4" fill="none" stroke-linecap="round"></path>
+<path d="M108 130 C110 170 108 210 106 244" stroke="#B9C6B2" stroke-width="1.4" fill="none" stroke-linecap="round"></path>
+<path d="M134 140 C146 180 150 210 144 246" stroke="#B9C6B2" stroke-width="1.4" fill="none" stroke-linecap="round"></path>
+<path d="M50 170 C50 205 60 232 76 252" stroke="#B9C6B2" stroke-width="1.4" fill="none" stroke-linecap="round"></path>
+<path d="M92 290 L90 314 L112 314 L108 290 Z" fill="#EEF0E8" stroke="#233122" stroke-width="1.2" stroke-linejoin="round"></path>
+<ellipse cx="100" cy="272" rx="17" ry="21" fill="#F6F0E1" stroke="#233122" stroke-width="1.6"></ellipse>
+<path d="M50 322 C40 380 46 440 66 490 C74 500 80 492 78 480 C70 430 68 370 76 318 Z" fill="#7A8C73" stroke="#233122" stroke-width="1.6" stroke-linejoin="round"></path>
+<path d="M66 472 C70 510 74 540 80 560 L84 548 C80 520 78 495 76 472 Z" fill="#8FA088" stroke="#233122" stroke-width="1.6" stroke-linejoin="round"></path>
+<path d="M128 320 C150 360 152 440 136 530 L126 528 C140 450 138 380 120 322 Z" fill="#7A8C73" stroke="#233122" stroke-width="1.6" stroke-linejoin="round"></path>
+<path d="M110 318 C134 360 140 430 124 520 L114 548 L108 546 C112 480 114 400 108 320 Z" fill="#8FA088" stroke="#233122" stroke-width="1.6" stroke-linejoin="round"></path>
+<path d="M58 340 C54 390 58 440 70 478" stroke="#B9C6B2" stroke-width="1.4" fill="none" stroke-linecap="round"></path>
+<path d="M66 336 C62 386 64 430 74 470" stroke="#B9C6B2" stroke-width="1.4" fill="none" stroke-linecap="round"></path>
+<path d="M118 340 C128 380 130 430 120 500" stroke="#B9C6B2" stroke-width="1.4" fill="none" stroke-linecap="round"></path>
+<path d="M134 344 C142 390 142 440 132 510" stroke="#B9C6B2" stroke-width="1.4" fill="none" stroke-linecap="round"></path>
+<path d="M80 314 C78 400 78 500 84 585 L104 588 C106 500 106 400 108 314 Z" fill="#F6F0E1" stroke="#233122" stroke-width="1.6" stroke-linejoin="round"></path>
+<path d="M114 548 C112 580 100 610 88 640" stroke="#EEF0E8" stroke-width="4" fill="none" stroke-linecap="round"></path>
+<ellipse cx="80" cy="598" rx="8" ry="9" fill="#F6F0E1" stroke="#233122" stroke-width="1.6"></ellipse>
+<ellipse cx="128" cy="610" rx="7" ry="9" fill="#F6F0E1" stroke="#233122" stroke-width="1.6"></ellipse>
+<path d="M98 612 L82 680" stroke="#EEF0E8" stroke-width="2.4" fill="none" stroke-linecap="round"></path>
+<path d="M104 614 L98 684" stroke="#EEF0E8" stroke-width="2.4" fill="none" stroke-linecap="round"></path>
+<path d="M110 616 L114 684" stroke="#EEF0E8" stroke-width="2.4" fill="none" stroke-linecap="round"></path>
+<path d="M116 616 L130 682" stroke="#EEF0E8" stroke-width="2.4" fill="none" stroke-linecap="round"></path>
+<path d="M122 616 L144 674" stroke="#EEF0E8" stroke-width="2.4" fill="none" stroke-linecap="round"></path>
+<path d="M90 670 L88 693" stroke="#233122" stroke-width="1.2" fill="none" stroke-linecap="round"></path>
+<path d="M106 672 L106 693" stroke="#233122" stroke-width="1.2" fill="none" stroke-linecap="round"></path>
+<path d="M120 670 L122 693" stroke="#233122" stroke-width="1.2" fill="none" stroke-linecap="round"></path>
+<path d="M134 666 L138 690" stroke="#233122" stroke-width="1.2" fill="none" stroke-linecap="round"></path></svg></template>
+
+<script>
+(function(){
+'use strict';
+// ---------- constantes ----------
+var Y0=332, STEP=27.5, H=23, VB_Y=248, VB_H=455;
+var NIVEL=['sem desconforto','leve','moderado','forte'];
+var TIPOS=[['rodagem','Rodagem'],['intervalado','Intervalado'],['longo','Longo'],['prova','Prova']];
+var QUANDO=[['antes','Antes'],['durante','Durante'],['depois','Depois'],['todo','O tempo todo']];
+var MUDOU=[['nao','Não'],['reduzi','Diminuí ritmo ou distância'],['parei','Parei']];
+var CAMINHAR=[['nao','Não'],['pouco','Um pouco'],['sim','Sim']];
+var INICIO=[['gradual','Aos poucos'],['subito','De repente']];
+// OSTRC-BR: texto oficial entra após autorização dos autores. Pontuação conforme Pimenta, Hespanhol e Lopes (2021).
+var OSTRC=[
+  {q:'[Pergunta 1 do OSTRC-BR: participação em treinos e competições]', pts:[0,8,17,25]},
+  {q:'[Pergunta 2 do OSTRC-BR: redução do volume de treino]', pts:[0,6,13,19,25]},
+  {q:'[Pergunta 3 do OSTRC-BR: efeito no desempenho]', pts:[0,6,13,19,25]},
+  {q:'[Pergunta 4 do OSTRC-BR: intensidade dos sintomas]', pts:[0,8,17,25]}
+];
+
+// ---------- estado ----------
+var S={
+  db:null, user:null, uid:null, ready:false, offline:false, readOnly:false,
+  perfil:null, treinos:[], semanais:{}, msg:null,
+  screen:'hoje', draft:null, sem:null, saving:false, error:''
+};
+var app=document.getElementById('app');
+var tabs=document.getElementById('tabs');
+var LEG=document.getElementById('legsvg').content.querySelector('svg').innerHTML;
+
+// ---------- utilidades ----------
+function pad(n){return String(n).padStart(2,'0')}
+function isoLocal(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function hoje(){return isoLocal(new Date())}
+function isoWeek(d){var t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));var day=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-day);var y=t.getUTCFullYear();var w=Math.ceil(((t-Date.UTC(y,0,1))/86400000+1)/7);return y+'-W'+pad(w)}
+var DIAS=['dom','seg','ter','qua','qui','sex','sáb'];
+var MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+var DIAS_LONGO=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+function dataLonga(d){return DIAS_LONGO[d.getDay()]+', '+d.getDate()+' de '+MESES[d.getMonth()]}
+function nivelDor(n){if(n==null)return 0; if(n<=0)return 0; if(n<=3)return 1; if(n<=6)return 2; return 3}
+function num(v){var x=parseFloat(String(v||'').replace(',','.'));return isFinite(x)?x:null}
+function fmtKm(x){return (Math.round(x*10)/10).toString().replace('.',',')}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function pressed(b){return b?'true':'false'}
+function segHtml(opts,val,act,extra){return '<div class="seg" role="group">'+opts.map(function(o){return '<button type="button" data-act="'+act+'" data-v="'+o[0]+'"'+(extra||'')+' aria-pressed="'+pressed(val===o[0])+'">'+o[1]+'</button>'}).join('')+'</div>'}
+function scaleHtml(val,act,pain,extra){var h='<div class="scale'+(pain?' pain':'')+'" role="group">';for(var i=0;i<=10;i++)h+='<button type="button" data-act="'+act+'" data-v="'+i+'"'+(extra||'')+' aria-pressed="'+pressed(val===i)+'">'+i+'</button>';return h+'</div>'}
+function pernasMarcadas(d){return ['dir','esq'].filter(function(p){return Object.keys(d.faixas[p]).length>0})}
+function resumoFaixas(f){
+  var ks=Object.keys(f).map(Number).sort(function(a,b){return a-b});
+  if(!ks.length)return 'nada marcado';
+  var txt;
+  if(ks.length===1) txt='faixa '+ks[0];
+  else if(ks.length===2) txt='faixas '+ks[0]+' e '+ks[1];
+  else if(ks[ks.length-1]-ks[0]===ks.length-1) txt='faixas '+ks[0]+' a '+ks[ks.length-1];
+  else txt='faixas '+ks.slice(0,-1).join(', ')+' e '+ks[ks.length-1];
+  if(ks.length>1){
+    var max=Math.max.apply(null,ks.map(function(k){return f[k]}));
+    var topo=ks.filter(function(k){return f[k]===max});
+    if(topo.length===1) txt+=', mais forte na '+topo[0];
+  }
+  return txt;
+}
+var NOME_PERNA={dir:'Sua direita',esq:'Sua esquerda'};
+
+// ---------- carregamento ----------
+function localDB(){
+  var KEY='tibia-demo-v1', data={}, subs=[];
+  try{data=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){data={}}
+  function pai(k){return k.split('/').slice(0,-1).join('/')}
+  function persist(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){} subs.forEach(function(f){f()})}
+  function snap(p){var d=data[p];return {id:p.split('/').pop(),exists:d!==undefined,data:function(){return d}}}
+  function consulta(c,ord,lim){
+    var docs=Object.keys(data).filter(function(k){return pai(k)===c}).map(snap);
+    if(ord)docs.sort(function(a,b){return String(b.data()[ord]||'').localeCompare(String(a.data()[ord]||''))});
+    docs=docs.slice(0,lim||1e9);
+    return {docs:docs,empty:!docs.length,size:docs.length};
+  }
+  function doc(p){return {
+    set:function(d){data[p]=JSON.parse(JSON.stringify(d));persist();return Promise.resolve()},
+    onSnapshot:function(fn){var f=function(){fn(snap(p))};subs.push(f);setTimeout(f,0);return function(){}}
+  }}
+  function collection(c){var o={_o:null,_l:null,
+    orderBy:function(f){o._o=f;return o},
+    limit:function(n){o._l=n;return o},
+    onSnapshot:function(fn){var f=function(){fn(consulta(c,o._o,o._l))};subs.push(f);setTimeout(f,0);return function(){}},
+    add:function(d){data[c+'/'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)]=JSON.parse(JSON.stringify(d));persist();return Promise.resolve()}
+  };return o}
+  return {doc:doc,collection:collection,reset:function(){Object.keys(data).forEach(function(k){delete data[k]});persist()}};
+}
+function semCapacidade(){S.offline=true;S.ready=true;render()}
+async function init(){
+  render();
+  S.demo=true; S.db=localDB(); S.uid='demo';
+  var base='registros/'+S.uid, db=S.db;
+  db.doc(base).onSnapshot(function(s){S.perfil=s.exists?s.data():null;S.ready=true;render()});
+  db.collection(base+'/treinos').orderBy('criadoEm','desc').limit(120).onSnapshot(function(q){S.treinos=q.docs.map(function(d){return d.data()});render()});
+  db.collection(base+'/semanal').onSnapshot(function(q){var m={};q.docs.forEach(function(d){m[d.id]=d.data()});S.semanais=m;render()});
+  db.collection(base+'/mensagens').orderBy('criadoEm','desc').limit(1).onSnapshot(function(q){S.msg=q.empty?null:q.docs[0].data();render()});
+}
+function semanaExemplo(){
+  var base='registros/'+S.uid, hojeD=new Date();
+  var plano=[[6,6.0,'rodagem',4,null],[5,null,null,null,'descanso'],[4,5.2,'rodagem',5,{4:1}],[3,7.0,'intervalado',7,{4:2,3:1}],[2,null,null,null,'descanso'],[1,8.0,'longo',6,{5:1,4:3,3:2}]];
+  plano.forEach(function(p,i){
+    var d=new Date(); d.setDate(hojeD.getDate()-p[0]);
+    var t={data:isoLocal(d),criadoEm:new Date(d.getTime()-i).toISOString()};
+    if(p[4]==='descanso'){t.descanso=true;t.desconforto=false}
+    else{
+      t.descanso=false;t.distanciaKm=p[1];t.tempoMin=Math.round(p[1]*5.7);t.tipo=p[2];t.esforco=p[3];t.desconforto=!!p[4];
+      if(p[4]){var mx=Math.max.apply(null,Object.keys(p[4]).map(function(k){return p[4][k]}));t.quando='durante';t.mudouTreino=mx===3?'reduzi':'nao';t.pernas={dir:{faixas:p[4],dor:[0,2,5,7][mx],caminhar:'nao',inicio:i===2?'gradual':null}}}
+    }
+    S.db.collection(base+'/treinos').add(t);
+  });
+  var ontem=new Date(); ontem.setDate(hojeD.getDate()-1);
+  S.db.collection(base+'/mensagens').add({texto:'Vi que o desconforto na sua tíbia direita aumentou nos últimos treinos. Vamos avaliar na sessão de quinta. Até lá, faça só rodagens leves. (Mensagem de exemplo)',criadoEm:ontem.toISOString()});
+}
+async function salvar(path,dados,depois){
+  if(!S.db||!S.uid){S.error='Sem conexão com o armazenamento. Abra o app pelo link do claude.ai, com sua conta.';render();return}
+  S.saving=true;S.error='';render();
+  try{
+    dados.criadoEm=new Date().toISOString();
+    if(path.split('/').length%2===1) await S.db.collection(path).add(dados);
+    else await S.db.doc(path).set(dados);
+    S.saving=false; depois&&depois(); render();
+  }catch(e){
+    S.saving=false;
+    if(e&&e.code==='invalid_argument'){S.readOnly=true;S.error='Sua conta não tem permissão para salvar aqui. Peça à equipe do projeto acesso de Contribuidor.'}
+    else if(e&&e.code==='quota_exceeded'){S.error='O armazenamento do piloto está cheio. Avise a equipe do projeto.'}
+    else{S.error='Não foi possível salvar agora. Confira sua conexão e tente de novo.'}
+    render();
+  }
+}
+
+// ---------- telas ----------
+function telaCarregando(){return '<div class="screen head"><p class="eyebrow">Acompanhamento da tíbia</p><h1>Carregando seus registros…</h1></div>'}
+
+function telaConsentimento(){
+  return '<section class="screen" style="display:flex;flex-direction:column;gap:16px">'+
+  '<div class="head"><p class="eyebrow">Versão de demonstração</p><h1>Acompanhamento da dor na tíbia</h1><p class="lead">Um app para corredoras e corredores registrarem, depois de cada treino, onde e quanto a tíbia doeu.</p></div>'+
+  '<div class="card"><p><strong>Como funciona na versão real:</strong> o atleta registra a dor após cada treino e responde 4 perguntas por semana. A clínica de fisioterapia que o acompanha recebe esses dados e age antes que o quadro se agrave.</p>'+
+  '<p><strong>Nesta demonstração:</strong> tudo o que você registrar fica só neste aparelho, no seu navegador. Nada é enviado para nenhuma clínica ou servidor.</p></div>'+
+  '<button class="btn" data-act="aceitar">Começar a demonstração</button>'+
+  '<p class="note">Um projeto do dotLAB · UPE</p>'+
+  '</section>'
+}
+function registroDeHoje(){var h=hoje();return S.treinos.filter(function(t){return t.data===h})}
+
+function telaHoje(){
+  var d=new Date(), regs=registroDeHoje(), sem=isoWeek(d), resp=S.semanais[sem];
+  var hero;
+  if(regs.length){
+    var ultimo=regs[0];
+    var txt=ultimo.descanso?'Dia de descanso registrado.':'Treino de hoje registrado'+(ultimo.desconforto?', com desconforto.':', sem desconforto.');
+    hero='<div class="card hero"><h2>Tudo certo por hoje</h2><p>'+txt+'</p><button class="btn ghost" data-act="novo">Registrar outro treino</button></div>';
+  }else{
+    hero='<div class="card hero"><h2>Treinou hoje?</h2><p>Leva menos de 1 minuto. Registre logo depois do treino, enquanto a sensação está fresca.</p>'+
+    '<button class="btn" data-act="novo">Registrar treino de hoje</button><button class="btn ghost" data-act="descanso"'+(S.saving?' disabled':'')+'>Hoje foi descanso</button></div>';
+  }
+  var weekly=resp?
+    '<button class="card weekly done" data-act="go" data-to="semana"><div class="linkrow"><span class="eyebrow">Avaliação semanal (OSTRC-BR)</span><span class="chip">respondida</span></div><p class="lead">Obrigado. A próxima abre na segunda-feira.</p></button>':
+    '<button class="card weekly" data-act="semIntro"><div class="linkrow"><span class="eyebrow">Avaliação semanal (OSTRC-BR)</span><span class="chip on">disponível</span></div><h2 style="font-size:17px">Como foi sua semana de treinos?</h2><p class="lead">4 perguntas, cerca de 1 minuto. Responda até domingo.</p></button>';
+  return '<section class="screen" style="display:flex;flex-direction:column;gap:16px">'+
+    '<div class="head"><p class="eyebrow">'+dataLonga(d)+'</p><h1>Olá</h1></div>'+
+    '<div class="banner"><strong>Demonstração.</strong> O que você registrar fica só neste aparelho e não vai para nenhuma clínica.</div>'+
+    '<div class="card" style="flex-direction:row;align-items:center;gap:12px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--gold-ink);flex-shrink:0"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg><p class="lead" style="color:var(--ink2)">Na versão real, seus registros vão para a clínica de fisioterapia que acompanha você.</p></div>'+
+    (S.error?'<p class="err" role="alert">'+esc(S.error)+'</p>':'')+
+    hero+weekly+
+    '<div class="foot"><span style="display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"></circle><path d="M12 9v3l2 2M9 3h6M9 21h6"></path></svg>Importar do relógio ou do Strava: em breve</span><span class="credit">Um projeto do dotLAB</span></div>'+
+    '<div class="row" style="margin-top:4px"><button class="btn ghost" data-act="exemplo" style="min-height:44px;font-size:14px">Preencher semana de exemplo</button><button class="btn ghost" data-act="limpar" style="min-height:44px;font-size:14px">Apagar dados</button></div>'+
+  '</section>'
+}
+
+function novoDraft(){return {data:hoje(),distancia:'',tempo:'',tipo:'rodagem',esforco:null,perna:'dir',pincel:2,faixas:{dir:{},esq:{}},dor:{dir:null,esq:null},caminhar:{dir:null,esq:null},inicio:{dir:null,esq:null},quando:null,mudou:null}}
+
+function telaReg1(){
+  var d=S.draft;
+  return '<section class="screen" style="display:flex;flex-direction:column;gap:16px">'+
+  '<div class="head"><p class="eyebrow">Registro pós-treino, 1 de 3</p><h1>Como foi o treino?</h1></div>'+
+  '<div class="card"><div class="row"><div class="field"><label for="dist">Distância (km)</label><input id="dist" inputmode="decimal" autocomplete="off" value="'+esc(d.distancia)+'" placeholder="0,0"></div><div class="field"><label for="tempo">Tempo (min)</label><input id="tempo" inputmode="numeric" autocomplete="off" value="'+esc(d.tempo)+'" placeholder="0"></div></div>'+
+  segHtml(TIPOS,d.tipo,'tipo')+'</div>'+
+  '<div><span class="lbl">Quanto esforço você fez?</span>'+scaleHtml(d.esforco,'esforco',false)+'<div class="ends"><span>Repouso</span><span>Máximo</span></div></div>'+
+  '<div class="head" style="margin-top:4px"><h2>Sentiu algum desconforto nas pernas hoje?</h2><p class="lead">Vale qualquer incômodo, mesmo leve, antes, durante ou depois do treino.</p></div>'+
+  (S.error?'<p class="err" role="alert">'+esc(S.error)+'</p>':'')+
+  '<button class="btn" data-act="sim">Sim, quero marcar onde</button>'+
+  '<button class="btn ghost" data-act="naoDor"'+(S.saving?' disabled':'')+'>'+(S.saving?'Salvando…':'Não, tudo certo')+'</button>'+
+  '<button class="btn ghost" data-act="go" data-to="hoje" style="min-height:44px;border:none;background:transparent;font-size:14px">Cancelar</button>'+
+  '</section>'
+}
+
+function bandsHtml(p){
+  var f=S.draft.faixas[p], h='';
+  for(var i=0;i<9;i++){
+    var n=9-i, l=f[n]||0;
+    var top=((Y0+i*STEP+H/2-STEP/2)-VB_Y)/VB_H*100;
+    h+='<button type="button" class="band" data-act="faixa" data-v="'+n+'" data-l="'+l+'" style="top:'+top.toFixed(3)+'%" aria-label="Faixa '+n+', '+NIVEL[l]+'"><span class="pill">'+n+'</span></button>';
+  }
+  return h;
+}
+function telaReg2(){
+  var d=S.draft, p=d.perna, marc=pernasMarcadas(d);
+  var leg=function(k){return '<button type="button" data-act="perna" data-v="'+k+'" aria-pressed="'+pressed(p===k)+'"><span class="legtab">'+NOME_PERNA[k]+'<small>'+resumoFaixas(d.faixas[k])+'</small></span></button>'};
+  var pin=function(v,txt,cor){return '<button type="button" data-act="pincel" data-v="'+v+'" aria-pressed="'+pressed(d.pincel===v)+'"'+(cor?'':' aria-label="Apagar" style="flex:0 0 48px"')+'>'+(cor?'<span class="sw" style="background:'+cor+'"></span>':'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20H7L3 16a2 2 0 0 1 0-3l9-9a2 2 0 0 1 3 0l5 5a2 2 0 0 1 0 3l-8 8"></path></svg>')+txt+'</button>'};
+  return '<section class="screen" style="display:flex;flex-direction:column;gap:16px">'+
+  '<div class="head"><p class="eyebrow">Registro pós-treino, 2 de 3</p><h1>Onde e quanto doeu?</h1><p class="lead">Vista de cima, como se você olhasse para as suas pernas.</p></div>'+
+  '<div class="seg">'+leg('esq')+leg('dir')+'</div>'+
+  '<div><span class="lbl" style="font-size:13px;color:var(--muted)">Escolha o nível e toque nas faixas. Tocar de novo no mesmo nível desmarca; a borracha apaga.</span><div class="pin">'+pin(1,'Leve','var(--p1)')+pin(2,'Moderado','var(--p2)')+pin(3,'Forte','var(--p3)')+pin(0,'','')+'</div></div>'+
+  '<div class="legcard"><span class="tag" style="top:12px">Joelho</span><span class="tag" style="bottom:12px">Pé</span><div class="legbox"><svg viewBox="15 248 175 455" aria-hidden="true">'+LEG+'</svg>'+bandsHtml(p)+'</div></div>'+
+  '<div class="row"><button class="btn ghost" data-act="voltar1">Voltar</button><button class="btn" data-act="cont2"'+(marc.length?'':' disabled')+'>Continuar</button></div>'+
+  (marc.length?'':'<p class="note">Marque pelo menos uma faixa para continuar.</p>')+
+  '</section>'
+}
+
+function semDorRecente(p){
+  var lim=new Date(); lim.setDate(lim.getDate()-7); var limIso=isoLocal(lim);
+  return !S.treinos.some(function(t){return t.data>=limIso && t.pernas && t.pernas[p] && t.pernas[p].faixas && Object.keys(t.pernas[p].faixas).length})
+}
+function telaReg3(){
+  var d=S.draft, marc=pernasMarcadas(d);
+  var blocos=marc.map(function(p){
+    var novo=semDorRecente(p), ex=' data-p="'+p+'"';
+    return '<div class="card"><div class="linkrow"><h2 style="font-size:17px">'+NOME_PERNA[p]+'</h2><span class="lead" style="font-size:13px">'+resumoFaixas(d.faixas[p])+'</span></div>'+
+      '<div><span class="lbl">Pior dor hoje nessa perna</span>'+scaleHtml(d.dor[p],'dor',true,ex)+'<div class="ends"><span>0, sem dor</span><span>10, pior dor possível</span></div></div>'+
+      '<div><span class="lbl">Dói ao caminhar agora?</span>'+segHtml(CAMINHAR,d.caminhar[p],'caminhar',ex)+'</div>'+
+      (novo?'<div><span class="lbl">É a primeira vez em 7 dias que essa perna dói. Como o desconforto começou?</span>'+segHtml(INICIO,d.inicio[p],'inicio',ex)+'</div>':'')+
+    '</div>'
+  }).join('');
+  var ok=d.quando&&d.mudou&&marc.every(function(p){return d.dor[p]!=null&&d.caminhar[p]&&(!semDorRecente(p)||d.inicio[p])});
+  return '<section class="screen" style="display:flex;flex-direction:column;gap:16px">'+
+  '<div class="head"><p class="eyebrow">Registro pós-treino, 3 de 3</p><h1>Para fechar</h1></div>'+
+  '<div class="card"><div><span class="lbl">Quando doeu?</span>'+segHtml(QUANDO,d.quando,'quando')+'</div><div><span class="lbl">O desconforto mudou o treino?</span>'+segHtml(MUDOU,d.mudou,'mudou')+'</div></div>'+
+  blocos+
+  (S.error?'<p class="err" role="alert">'+esc(S.error)+'</p>':'')+
+  '<p class="note">Na versão real, seus registros vão para a clínica que acompanha você. O app não faz diagnóstico.</p>'+
+  '<div class="row"><button class="btn ghost" data-act="voltar2">Voltar</button><button class="btn" data-act="enviar"'+(ok&&!S.saving?'':' disabled')+'>'+(S.saving?'Enviando…':'Enviar registro')+'</button></div>'+
+  (ok?'':'<p class="note">Responda todas as perguntas para enviar.</p>')+
+  '</section>'
+}
+
+function telaFeito(){
+  return '<section class="screen" style="display:flex;flex-direction:column;gap:16px">'+
+  '<div class="done-mark"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--gold-ink)"><path d="M20 6L9 17l-5-5"></path></svg></div>'+
+  '<div class="head" style="text-align:center"><h1>Registro enviado</h1><p class="lead">Na versão real, a clínica já veria o que você marcou. Aqui, ficou salvo só neste aparelho.</p></div>'+
+  '<button class="btn" data-act="go" data-to="semana">Ver minha semana</button><button class="btn ghost" data-act="go" data-to="hoje">Voltar ao início</button></section>'
+}
+
+function telaSemIntro(){
+  var temas=['Participação nos treinos e competições','Redução do volume de treino','Efeito no desempenho','Intensidade dos sintomas'];
+  return '<section class="screen" style="display:flex;flex-direction:column;gap:16px">'+
+  '<div class="head"><p class="eyebrow">Avaliação semanal (OSTRC-BR)</p><h1>Como foi sua semana de treinos?</h1></div>'+
+  '<p style="color:var(--ink2)">São 4 perguntas sobre como desconfortos, dores ou outros problemas de saúde afetaram seus treinos nos últimos 7 dias.</p>'+
+  '<div class="card">'+temas.map(function(t,i){return '<div style="display:flex;align-items:center;gap:12px"><span style="width:32px;height:32px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--gold-ink);flex-shrink:0">'+(i+1)+'</span><p>'+t+'</p></div>'}).join('')+'</div>'+
+  '<div class="banner"><p style="font-weight:700;margin-bottom:4px">Sobre este questionário</p><p>É a versão brasileira validada (OSTRC-BR) do questionário do Oslo Sports Trauma Research Center, usado no mundo todo para acompanhar a saúde de atletas.</p><p style="font-size:12px;color:var(--muted);margin-top:6px">Pimenta RM, Hespanhol L, Lopes AD. Braz J Phys Ther, 2021.</p></div>'+
+  '<div class="row"><button class="btn ghost" data-act="go" data-to="hoje">Agora não</button><button class="btn" data-act="semComecar">Começar</button></div></section>'
+}
+
+function telaSemQ(){
+  var s=S.sem, i=s.i, q=OSTRC[i], v=s.r[i];
+  var bar='<div class="bar" aria-hidden="true">'+OSTRC.map(function(_,k){return '<span class="'+(k<=i?'on':'')+'"></span>'}).join('')+'</div>';
+  var opts=q.pts.map(function(_,k){return '<button type="button" class="opt" data-act="semOpt" data-v="'+k+'" aria-pressed="'+pressed(v===k)+'"><span class="dot"></span>[Opção '+(k+1)+' do OSTRC-BR]</button>'}).join('');
+  var ult=i===OSTRC.length-1;
+  return '<section class="screen" style="display:flex;flex-direction:column;gap:16px">'+
+  '<div class="head"><p class="eyebrow">Avaliação semanal (OSTRC-BR)</p><h1>Pergunta '+(i+1)+' de 4</h1></div>'+bar+
+  '<div class="head"><h2>'+q.q+'</h2><p class="lead">Considere os últimos 7 dias.</p></div>'+
+  '<div style="display:flex;flex-direction:column;gap:8px" role="group">'+opts+'</div>'+
+  (S.error?'<p class="err" role="alert">'+esc(S.error)+'</p>':'')+
+  '<p class="note">Texto oficial do OSTRC-BR inserido após autorização dos autores.</p>'+
+  '<div class="row"><button class="btn ghost" data-act="semVoltar">Voltar</button><button class="btn" data-act="semProx"'+(v==null||S.saving?' disabled':'')+'>'+(ult?(S.saving?'Enviando…':'Enviar respostas'):'Próxima')+'</button></div></section>'
+}
+
+function miniLeg(f){
+  var h='<div class="mini"><svg viewBox="15 248 175 455" aria-hidden="true">'+LEG.replace(/stroke-width="2.2"/,'stroke-width="4"');
+  for(var i=0;i<9;i++){var n=9-i,l=f[n]||0,y=Y0+i*STEP;var col=['rgba(255,255,255,.6)','#F7D9C8','#EDA27C','#B5532D'][l];h+='<rect x="59" y="'+y+'" width="56" height="'+H+'" rx="11.5" fill="'+col+'"></rect>'}
+  return h+'</svg></div>'
+}
+function telaSemana(){
+  var hojeD=new Date(), dias=[];
+  for(var k=6;k>=0;k--){var d=new Date();d.setDate(hojeD.getDate()-k);dias.push(d)}
+  var ini=isoLocal(dias[0]), fim=isoLocal(dias[6]);
+  var regs=S.treinos.filter(function(t){return t.data>=ini&&t.data<=fim});
+  var totalKm=0, treinos=0, comDor=0, agg={dir:{},esq:{}};
+  var cel=dias.map(function(d){
+    var iso=isoLocal(d), rs=regs.filter(function(t){return t.data===iso});
+    var km=0, lv=-1, desc=false;
+    rs.forEach(function(t){
+      if(t.descanso){desc=true;return}
+      treinos++; if(t.desconforto)comDor++;
+      km+=num(t.distanciaKm)||0;
+      var m=0; ['dir','esq'].forEach(function(p){if(t.pernas&&t.pernas[p]){m=Math.max(m,nivelDor(t.pernas[p].dor));var f=t.pernas[p].faixas||{};Object.keys(f).forEach(function(n){agg[p][n]=Math.max(agg[p][n]||0,f[n])})}});
+      lv=Math.max(lv,m);
+    });
+    totalKm+=km;
+    var cls=lv>=0?'l'+lv:(desc?'rest':'');
+    var lab=lv>=0?NIVEL[lv]:(desc?'descanso':'sem registro');
+    return '<div class="day"><span>'+DIAS[d.getDay()]+'</span><span class="p '+cls+'" role="img" aria-label="'+DIAS[d.getDay()]+': '+lab+'"></span><span class="km">'+(km?fmtKm(km):'–')+'</span></div>'
+  }).join('');
+  var pernasDor=['esq','dir'].filter(function(p){return Object.keys(agg[p]).length});
+  var mapa=pernasDor.length?
+    '<div class="card"><h2 style="font-size:17px">Onde doeu nesta semana</h2><div class="minis">'+pernasDor.map(function(p){return '<div style="display:flex;align-items:center;gap:10px">'+miniLeg(agg[p])+'<div><p style="font-weight:700">'+NOME_PERNA[p]+'</p><p class="lead" style="font-size:13px">'+resumoFaixas(agg[p])+'</p></div></div>'}).join('')+'</div>'+
+    '<p class="lead" style="font-size:13px">Desconforto em '+comDor+' de '+treinos+' treino'+(treinos===1?'':'s')+'.</p></div>':
+    (treinos?'<div class="card"><h2 style="font-size:17px">Nenhum desconforto nesta semana</h2><p class="lead">'+treinos+' treino'+(treinos===1?'':'s')+' registrado'+(treinos===1?'':'s')+'.</p></div>':
+    '<div class="card"><h2 style="font-size:17px">Nenhum treino registrado nesta semana</h2><p class="lead">Registre o próximo treino logo depois de terminar.</p><button class="btn" data-act="novo">Registrar treino</button></div>');
+  var msg=S.msg?'<div class="card"><p class="eyebrow">Mensagem da clínica</p><p id="msgtxt"></p><p class="lead" style="font-size:12px" id="msgdata"></p></div>':'';
+  return '<section class="screen" style="display:flex;flex-direction:column;gap:16px">'+
+  '<div class="head"><p class="eyebrow">Minha semana</p><div class="linkrow"><h1>Últimos 7 dias</h1><span style="font-weight:700;color:var(--muted)">'+fmtKm(totalKm)+' km</span></div></div>'+
+  '<div class="card"><div class="days">'+cel+'</div><div class="legend"><span><i style="background:var(--surface);border:1px solid var(--faint)"></i>sem desconforto</span><span><i style="background:var(--p1)"></i>leve</span><span><i style="background:var(--p2)"></i>moderado</span><span><i style="background:var(--p3)"></i>forte</span><span><i style="background:var(--chip)"></i>descanso</span></div></div>'+
+  mapa+msg+'</section>'
+}
+
+// ---------- render ----------
+function render(){
+  var html;
+  if(!S.ready) html=telaCarregando();
+  else if(!S.offline && !(S.perfil&&S.perfil.consentimento)) html=telaConsentimento();
+  else switch(S.screen){
+    case 'reg1': html=telaReg1(); break;
+    case 'reg2': html=telaReg2(); break;
+    case 'reg3': html=telaReg3(); break;
+    case 'feito': html=telaFeito(); break;
+    case 'semIntro': html=telaSemIntro(); break;
+    case 'semQ': html=telaSemQ(); break;
+    case 'semana': html=telaSemana(); break;
+    default: html=telaHoje();
+  }
+  var foco=document.activeElement&&document.activeElement.id;
+  app.innerHTML=html;
+  if(S.msg){var mt=document.getElementById('msgtxt'),md=document.getElementById('msgdata');if(mt)mt.textContent=String(S.msg.texto||'');if(md&&S.msg.criadoEm){var dd=new Date(S.msg.criadoEm);md.textContent=isNaN(dd)?'':dd.getDate()+' de '+MESES[dd.getMonth()]}}
+  if(foco){var el=document.getElementById(foco);if(el){el.focus();var v=el.value;el.value='';el.value=v}}
+  var mostraTabs=S.ready&&(S.offline||(S.perfil&&S.perfil.consentimento))&&(S.screen==='hoje'||S.screen==='semana'||S.screen==='feito');
+  tabs.style.display=mostraTabs?'flex':'none';
+  tabs.querySelectorAll('.tab').forEach(function(t){if(t.dataset.to===S.screen)t.setAttribute('aria-current','page');else t.removeAttribute('aria-current')});
+}
+function ir(scr){S.screen=scr;S.error='';render();window.scrollTo(0,0)}
+
+// ---------- eventos ----------
+app.addEventListener('input',function(e){
+  if(!S.draft)return;
+  if(e.target.id==='dist')S.draft.distancia=e.target.value;
+  if(e.target.id==='tempo')S.draft.tempo=e.target.value;
+});
+document.addEventListener('click',function(e){
+  var b=e.target.closest('[data-act]'); if(!b||b.disabled)return;
+  var a=b.dataset.act, v=b.dataset.v, p=b.dataset.p, d=S.draft;
+  switch(a){
+    case 'go': ir(b.dataset.to); break;
+    case 'aceitar':
+      salvar('registros/'+S.uid,{consentimento:true,demo:true},function(){S.screen='hoje'});
+      break;
+    case 'novo': S.draft=novoDraft(); ir('reg1'); break;
+    case 'exemplo': semanaExemplo(); ir('semana'); break;
+    case 'limpar':
+      if(window.confirm('Apagar todos os registros desta demonstração neste aparelho?')){S.db.reset();S.screen='hoje';S.draft=null;S.sem=null;render()}
+      break;
+    case 'descanso': salvar('registros/'+S.uid+'/treinos',{data:hoje(),descanso:true,desconforto:false}); break;
+    case 'tipo': d.tipo=v; render(); break;
+    case 'esforco': d.esforco=+v; render(); break;
+    case 'sim': ir('reg2'); break;
+    case 'naoDor':
+      salvar('registros/'+S.uid+'/treinos',montarTreino(false),function(){S.draft=null;S.screen='feito'}); break;
+    case 'perna': d.perna=v; render(); break;
+    case 'pincel': d.pincel=+v; render(); break;
+    case 'faixa':
+      var f=d.faixas[d.perna], n=+v;
+      if(d.pincel===0||f[n]===d.pincel) delete f[n]; else f[n]=d.pincel;
+      render();
+      var nb=app.querySelector('.band[data-v="'+n+'"]'); if(nb)nb.focus();
+      break;
+    case 'voltar1': ir('reg1'); break;
+    case 'cont2': ir('reg3'); break;
+    case 'voltar2': ir('reg2'); break;
+    case 'quando': d.quando=v; render(); break;
+    case 'mudou': d.mudou=v; render(); break;
+    case 'dor': d.dor[p]=+v; render(); break;
+    case 'caminhar': d.caminhar[p]=v; render(); break;
+    case 'inicio': d.inicio[p]=v; render(); break;
+    case 'enviar':
+      salvar('registros/'+S.uid+'/treinos',montarTreino(true),function(){S.draft=null;S.screen='feito'}); break;
+    case 'semIntro': ir('semIntro'); break;
+    case 'semComecar': S.sem={i:0,r:[null,null,null,null]}; ir('semQ'); break;
+    case 'semOpt': S.sem.r[S.sem.i]=+v; render(); break;
+    case 'semVoltar': if(S.sem.i===0)ir('semIntro'); else {S.sem.i--; render()} break;
+    case 'semProx':
+      if(S.sem.i<OSTRC.length-1){S.sem.i++; render(); window.scrollTo(0,0); break}
+      var pts=S.sem.r.map(function(k,i){return OSTRC[i].pts[k]});
+      var sem=isoWeek(new Date());
+      salvar('registros/'+S.uid+'/semanal/'+sem,{semana:sem,respostas:S.sem.r.slice(),pontos:pts,gravidade:pts.reduce(function(a,b){return a+b},0),instrumento:'OSTRC-BR'},function(){S.sem=null;S.screen='hoje'});
+      break;
+  }
+});
+function montarTreino(comDor){
+  var d=S.draft, t={data:d.data,descanso:false,distanciaKm:num(d.distancia),tempoMin:num(d.tempo),tipo:d.tipo,esforco:d.esforco,desconforto:comDor};
+  if(comDor){
+    t.quando=d.quando; t.mudouTreino=d.mudou; t.pernas={};
+    pernasMarcadas(d).forEach(function(p){
+      t.pernas[p]={faixas:Object.assign({},d.faixas[p]),dor:d.dor[p],caminhar:d.caminhar[p],inicio:semDorRecente(p)?d.inicio[p]:null};
+    });
+  }
+  return t;
+}
+
+init();
+})();
+</script>
+</body>
+</html>
