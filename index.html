@@ -126,6 +126,16 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(-
 .err{color:var(--err);font-size:13px;font-weight:600}
 .done-mark{width:64px;height:64px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;align-self:center;margin-top:24px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{background:var(--bg);border-radius:12px;padding:12px}
+.tile b{display:block;font-family:'Nunito','Manrope',sans-serif;font-weight:800;font-size:22px;line-height:1.1}
+.tile span{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.reltab{border-collapse:collapse;width:100%;font-size:13px}
+.reltab th{text-align:left;font-weight:700;color:var(--muted);border-bottom:1px solid var(--line2);padding:6px 8px 6px 0;white-space:nowrap}
+.reltab td{border-bottom:1px solid var(--line);padding:7px 8px 7px 0;vertical-align:top}
+.pontos{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.relpdf .card{border:1px solid #E4E1D8}
+.relpdf h1{font-size:30px}
 @media (prefers-reduced-motion: no-preference){
   .screen{animation:in .18s ease-out}
   @keyframes in{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:none}}
@@ -197,7 +207,8 @@ var OSTRC=[
 var S={
   db:null, user:null, uid:null, ready:false, offline:false, readOnly:false,
   perfil:null, treinos:[], semanais:{}, msg:null,
-  screen:'hoje', draft:null, sem:null, saving:false, error:''
+  screen:'hoje', draft:null, sem:null, saving:false, error:'',
+  rel:{versao:'atleta'}, obs:{}, nome:'Atleta da demonstração', relMsg:'', exportando:false
 };
 var app=document.getElementById('app');
 var tabs=document.getElementById('tabs');
@@ -271,10 +282,17 @@ async function init(){
   db.collection(base+'/treinos').orderBy('criadoEm','desc').limit(120).onSnapshot(function(q){S.treinos=q.docs.map(function(d){return d.data()});render()});
   db.collection(base+'/semanal').onSnapshot(function(q){var m={};q.docs.forEach(function(d){m[d.id]=d.data()});S.semanais=m;render()});
   db.collection(base+'/mensagens').orderBy('criadoEm','desc').limit(1).onSnapshot(function(q){S.msg=q.empty?null:q.docs[0].data();render()});
+  db.collection(base+'/obs').onSnapshot(function(q){var m={};q.docs.forEach(function(d){m[d.id]=d.data()});S.obs=m;render()});
 }
 function semanaExemplo(){
   var base='registros/'+S.uid, hojeD=new Date();
   var plano=[[6,6.0,'rodagem',4,null],[5,null,null,null,'descanso'],[4,5.2,'rodagem',5,{4:1}],[3,7.0,'intervalado',7,{4:2,3:1}],[2,null,null,null,'descanso'],[1,8.0,'longo',6,{5:1,4:3,3:2}]];
+  [[13,5.0,'rodagem',4],[11,6.0,'rodagem',5],[9,10.0,'longo',6],[8,5.0,'intervalado',7]].forEach(function(p,i){
+    var d=new Date(); d.setDate(hojeD.getDate()-p[0]);
+    S.db.collection(base+'/treinos').add({data:isoLocal(d),criadoEm:new Date(d.getTime()-i).toISOString(),descanso:false,distanciaKm:p[1],tempoMin:Math.round(p[1]*5.7),tipo:p[2],esforco:p[3],desconforto:false});
+  });
+  var semAnt=new Date(); semAnt.setDate(hojeD.getDate()-7);
+  S.db.doc(base+'/semanal/'+isoWeek(semAnt)).set({semana:isoWeek(semAnt),respostas:[0,1,0,1],pontos:[0,6,0,8],gravidade:14,instrumento:'OSTRC-BR',criadoEm:semAnt.toISOString()});
   plano.forEach(function(p,i){
     var d=new Date(); d.setDate(hojeD.getDate()-p[0]);
     var t={data:isoLocal(d),criadoEm:new Date(d.getTime()-i).toISOString()};
@@ -331,7 +349,7 @@ function telaHoje(){
     '<button class="btn" data-act="novo">Registrar treino de hoje</button><button class="btn ghost" data-act="descanso"'+(S.saving?' disabled':'')+'>Hoje foi descanso</button></div>';
   }
   var weekly=resp?
-    '<button class="card weekly done" data-act="go" data-to="semana"><div class="linkrow"><span class="eyebrow">Avaliação semanal (OSTRC-BR)</span><span class="chip">respondida</span></div><p class="lead">Obrigado. A próxima abre na segunda-feira.</p></button>':
+    '<button class="card weekly done" data-act="go" data-to="relatorio"><div class="linkrow"><span class="eyebrow">Avaliação semanal (OSTRC-BR)</span><span class="chip">respondida</span></div><h2 style="font-size:17px">Ver relatório da semana</h2><p class="lead">Mostre na consulta ou exporte em PDF. A próxima avaliação abre na segunda-feira.</p></button>':
     '<button class="card weekly" data-act="semIntro"><div class="linkrow"><span class="eyebrow">Avaliação semanal (OSTRC-BR)</span><span class="chip on">disponível</span></div><h2 style="font-size:17px">Como foi sua semana de treinos?</h2><p class="lead">4 perguntas, cerca de 1 minuto. Responda até domingo.</p></button>';
   return '<section class="screen" style="display:flex;flex-direction:column;gap:16px">'+
     '<div class="head"><p class="eyebrow">'+dataLonga(d)+'</p><h1>Olá</h1></div>'+
@@ -511,7 +529,202 @@ function telaSemana(){
   return '<section class="screen" style="display:flex;flex-direction:column;gap:16px">'+
   '<div class="head"><p class="eyebrow">Minha semana</p><div class="linkrow"><h1>Últimos 7 dias</h1><span style="font-weight:700;color:var(--muted)">'+fmtKm(totalKm)+' km</span></div><p class="lead">'+periodo(dias[0],dias[6])+'</p></div>'+
   '<div class="card"><div class="days">'+cel+'</div><div class="legend"><span><i style="background:var(--surface);border:1px solid var(--faint)"></i>sem desconforto</span><span><i style="background:var(--p1)"></i>leve</span><span><i style="background:var(--p2)"></i>moderado</span><span><i style="background:var(--p3)"></i>forte</span><span><i style="background:var(--chip)"></i>descanso</span></div></div>'+
-  mapa+msg+'</section>'
+  mapa+msg+'<button class="btn ghost" data-act="go" data-to="relatorio">Ver relatório da semana</button></section>'
+}
+
+// ---------- relatório semanal ----------
+function isoToDate(iso){var p=iso.split('-');return new Date(+p[0],+p[1]-1,+p[2])}
+function addDias(iso,n){var x=isoToDate(iso);x.setDate(x.getDate()+n);return isoLocal(x)}
+function janela(fim,n){var a=[];for(var k=n-1;k>=0;k--)a.push(addDias(fim,-k));return a}
+function cargaDe(t){return (num(t.tempoMin)||0)*(t.esforco||0)}
+function nivelRegistro(t){var m=0;['dir','esq'].forEach(function(p){if(t.pernas&&t.pernas[p]){var f=t.pernas[p].faixas||{};Object.keys(f).forEach(function(n){m=Math.max(m,f[n])})}});return m}
+function fimRelatorio(){var r=S.semanais[isoWeek(new Date())];if(r&&r.criadoEm){var d=new Date(r.criadoEm);if(!isNaN(d))return isoLocal(d)}return hoje()}
+function fmtMin(m){m=Math.round(m||0);var h=Math.floor(m/60),r=m%60;return h?h+' h '+pad(r)+' min':r+' min'}
+function diaCurto(iso){var d=isoToDate(iso);return DIAS[d.getDay()]+' '+d.getDate()}
+function ostrcSubstancial(o){if(!o||!o.respostas)return false;var r=o.respostas;return r[0]===3||r[1]>=2||r[2]>=2}
+var TIPO_NOME={rodagem:'Rodagem',intervalado:'Intervalado',longo:'Longo',prova:'Prova'};
+
+function relDados(fim){
+  var dias=janela(fim,7), ini=dias[0];
+  var noIntervalo=function(a,b){return S.treinos.filter(function(t){return t.data>=a&&t.data<=b})};
+  var regs=noIntervalo(ini,fim).slice().sort(function(a,b){return a.data<b.data?-1:a.data>b.data?1:0});
+  var treinos=regs.filter(function(t){return !t.descanso});
+  var R={fim:fim,ini:ini,dias:dias,regs:regs,treinos:treinos};
+  R.descansos=regs.length-treinos.length;
+  R.diasReg=dias.filter(function(d){return regs.some(function(t){return t.data===d})}).length;
+  R.km=treinos.reduce(function(s,t){return s+(num(t.distanciaKm)||0)},0);
+  R.tempo=treinos.reduce(function(s,t){return s+(num(t.tempoMin)||0)},0);
+  R.carga=treinos.reduce(function(s,t){return s+cargaDe(t)},0);
+  var prev=noIntervalo(addDias(ini,-7),addDias(ini,-1)).filter(function(t){return !t.descanso});
+  R.prevTem=prev.length>0; R.prevCarga=prev.reduce(function(s,t){return s+cargaDe(t)},0);
+  R.varCarga=R.prevTem&&R.prevCarga>0?Math.round((R.carga-R.prevCarga)/R.prevCarga*100):null;
+  R.maiorSessao=treinos.reduce(function(m,t){return Math.max(m,num(t.tempoMin)||0)},0);
+  var ant=noIntervalo(addDias(ini,-28),addDias(ini,-1)).filter(function(t){return !t.descanso});
+  R.maior28=ant.length?ant.reduce(function(m,t){return Math.max(m,num(t.tempoMin)||0)},0):null;
+  R.porDia=dias.map(function(d){
+    var rs=regs.filter(function(t){return t.data===d});
+    var o={iso:d,registrado:rs.length>0,descanso:rs.some(function(t){return t.descanso}),km:0,tempo:0,carga:0,nivel:-1};
+    rs.forEach(function(t){if(t.descanso)return;o.km+=num(t.distanciaKm)||0;o.tempo+=num(t.tempoMin)||0;o.carga+=cargaDe(t);o.nivel=Math.max(o.nivel,nivelRegistro(t))});
+    return o;
+  });
+  R.pernas={};
+  ['esq','dir'].forEach(function(p){
+    var agg={},cont={},pior=null,diasDor=0;
+    treinos.forEach(function(t){if(t.pernas&&t.pernas[p]){var f=t.pernas[p].faixas||{};if(Object.keys(f).length)diasDor++;Object.keys(f).forEach(function(n){agg[n]=Math.max(agg[n]||0,f[n]);cont[n]=(cont[n]||0)+1});if(t.pernas[p].dor!=null)pior=Math.max(pior==null?0:pior,t.pernas[p].dor)}});
+    if(diasDor)R.pernas[p]={agg:agg,cont:cont,pior:pior,dias:diasDor};
+  });
+  R.comDor=treinos.filter(function(t){return t.desconforto}).length;
+  R.modificados=treinos.filter(function(t){return t.mudouTreino==='reduzi'||t.mudouTreino==='parei'}).length;
+  R.semId=isoWeek(isoToDate(fim));
+  R.ost=S.semanais[R.semId]||null;
+  R.ostPrev=S.semanais[isoWeek(isoToDate(addDias(fim,-7)))]||null;
+  R.substancial=ostrcSubstancial(R.ost);
+  // pontos para conversar com a fisioterapia (descritivos, sem interpretação clínica)
+  var P=[];
+  treinos.forEach(function(t){['dir','esq'].forEach(function(p){var x=t.pernas&&t.pernas[p];if(!x)return;var lado=p==='dir'?'direita':'esquerda';
+    if(x.caminhar==='sim'||x.caminhar==='pouco')P.push('Dor ao caminhar ('+(x.caminhar==='sim'?'sim':'um pouco')+') na perna '+lado+', '+diaCurto(t.data)+'.');
+    if(x.inicio==='subito')P.push('Desconforto que começou de repente na perna '+lado+', '+diaCurto(t.data)+'.');
+    var ks=Object.keys(x.faixas||{});if(ks.length===1&&x.faixas[ks[0]]===3)P.push('Dor forte concentrada em uma única faixa (faixa '+ks[0]+', perna '+lado+'), '+diaCurto(t.data)+'.');
+  })});
+  var comNivel=R.porDia.filter(function(d){return d.nivel>0});
+  if(comNivel.length>=2&&comNivel[comNivel.length-1].nivel>comNivel[0].nivel)P.push('O desconforto aumentou ao longo da semana ('+NIVEL[comNivel[0].nivel]+' em '+diaCurto(comNivel[0].iso)+', '+NIVEL[comNivel[comNivel.length-1].nivel]+' em '+diaCurto(comNivel[comNivel.length-1].iso)+').');
+  if(R.varCarga!=null&&R.varCarga>0&&R.comDor>0)P.push('A carga subiu '+R.varCarga+'% em relação à semana anterior, numa semana com desconforto.');
+  if(R.maior28!=null&&R.maiorSessao>R.maior28)P.push('A sessão mais longa da semana ('+fmtMin(R.maiorSessao)+') superou a mais longa das quatro semanas anteriores ('+fmtMin(R.maior28)+').');
+  if(R.modificados)P.push(R.modificados+' treino'+(R.modificados>1?'s':'')+' reduzido'+(R.modificados>1?'s':'')+' ou interrompido'+(R.modificados>1?'s':'')+' por desconforto.');
+  if(R.substancial)P.push('A semana se enquadra como problema substancial pelo critério do OSTRC-BR.');
+  R.pontos=P;
+  R.obs=(S.obs[R.semId]&&S.obs[R.semId].texto)||'';
+  return R;
+}
+
+function graficoSemana(R){
+  var max=Math.max.apply(null,R.porDia.map(function(d){return d.carga}).concat([1]));
+  var cores=['#FFFFFF','#F7D9C8','#EDA27C','#B5532D'];
+  var h='<svg viewBox="0 0 350 168" style="width:100%;max-height:190px;display:block;margin:0 auto" role="img" aria-label="Carga e desconforto por dia">';
+  h+='<line x1="4" y1="100" x2="346" y2="100" stroke="#D9D6CC" stroke-width="1"></line>';
+  R.porDia.forEach(function(d,i){
+    var x=i*50+10, bh=Math.round(d.carga/max*84), y=100-bh;
+    if(d.carga>0)h+='<rect x="'+x+'" y="'+y+'" width="30" height="'+bh+'" rx="4" fill="#8FA088"></rect><text x="'+(x+15)+'" y="'+(y-4)+'" text-anchor="middle" font-size="9" font-weight="700" fill="#3F4B3C" font-family="Manrope, sans-serif">'+Math.round(d.carga)+'</text>';
+    var cy=120;
+    if(d.nivel>=0)h+='<circle cx="'+(x+15)+'" cy="'+cy+'" r="8" fill="'+cores[d.nivel]+'" stroke="'+(d.nivel===0?'#8A9486':'none')+'" stroke-width="1.5"></circle>';
+    else if(d.descanso)h+='<circle cx="'+(x+15)+'" cy="'+cy+'" r="8" fill="#EDE9DF"></circle>';
+    else h+='<circle cx="'+(x+15)+'" cy="'+cy+'" r="8" fill="none" stroke="#CBCAC0" stroke-dasharray="3 3"></circle>';
+    var dd=isoToDate(d.iso);
+    h+='<text x="'+(x+15)+'" y="146" text-anchor="middle" font-size="10" font-weight="700" fill="#566352" font-family="Manrope, sans-serif">'+DIAS[dd.getDay()]+'</text><text x="'+(x+15)+'" y="160" text-anchor="middle" font-size="11" font-weight="800" fill="#233122" font-family="Manrope, sans-serif">'+dd.getDate()+'</text>';
+  });
+  return h+'</svg>';
+}
+function pernaRel(f){
+  var h='<div style="position:relative;width:64px;height:166px;background:#F5F3EC;border-radius:10px;flex-shrink:0"><svg viewBox="15 248 175 455" style="position:absolute;inset:0;width:100%;height:100%" aria-hidden="true">'+LEG.replace(/stroke-width="2.2"/,'stroke-width="4"');
+  for(var i=0;i<9;i++){var n=9-i,l=f[n]||0,y=Y0+i*STEP;h+='<rect x="59" y="'+y+'" width="56" height="'+H+'" rx="11.5" fill="'+['rgba(255,255,255,.6)','#F7D9C8','#EDA27C','#B5532D'][l]+'"></rect>'}
+  return h+'</svg></div>';
+}
+function tabela(cab,linhas){
+  return '<div style="overflow-x:auto"><table class="reltab"><thead><tr>'+cab.map(function(c){return '<th>'+c+'</th>'}).join('')+'</tr></thead><tbody>'+linhas.map(function(l){return '<tr>'+l.map(function(c){return '<td>'+c+'</td>'}).join('')+'</tr>'}).join('')+'</tbody></table></div>';
+}
+function relHtml(R,versao,pdf){
+  var completa=versao==='completa';
+  var a=isoToDate(R.ini), b=isoToDate(R.fim), g=new Date();
+  var h='';
+  h+='<div class="blk relhead"><p class="eyebrow">Relatório da semana · '+(completa?'versão completa':'versão do atleta')+'</p><h1>'+periodo(a,b)+'</h1>'+
+     '<p class="lead">Atleta: '+esc(S.nome||'—')+' · Gerado em '+g.getDate()+' de '+MESES[g.getMonth()]+' de '+g.getFullYear()+'</p>'+
+     '<p class="lead">Registros em '+R.diasReg+' de 7 dias'+(R.diasReg<5?'. Com poucos dias registrados, o resumo pode não representar a semana.':'.')+'</p></div>';
+  if(!pdf)h+='<div class="seg" role="group" aria-label="Versão do relatório"><button type="button" data-act="relVersao" data-v="atleta" aria-pressed="'+pressed(!completa)+'">Versão do atleta</button><button type="button" data-act="relVersao" data-v="completa" aria-pressed="'+pressed(completa)+'">Versão completa</button></div>';
+  var tile=function(v,l){return '<div class="tile"><b>'+v+'</b><span>'+l+'</span></div>'};
+  h+='<div class="blk card"><div class="tiles">'+tile(R.treinos.length,'treino'+(R.treinos.length===1?'':'s'))+tile(fmtKm(R.km)+' km','distância')+tile(fmtMin(R.tempo),'tempo total')+tile(R.comDor+' de '+R.treinos.length,'treinos com desconforto')+'</div></div>';
+  h+='<div class="blk card"><h2 style="font-size:17px">Dia a dia</h2>'+graficoSemana(R)+'<p class="lead" style="font-size:12px">Barras: carga do treino (tempo × esforço). Círculos: maior desconforto marcado no dia (branco sem desconforto, pêssego leve, damasco moderado, terracota forte; cinza descanso; tracejado sem registro).</p></div>';
+  var ps=Object.keys(R.pernas);
+  h+='<div class="blk card"><h2 style="font-size:17px">Onde doeu</h2>'+(ps.length?ps.map(function(p){var x=R.pernas[p];return '<div style="display:flex;gap:14px;align-items:center">'+pernaRel(x.agg)+'<div><p style="font-weight:700">'+NOME_PERNA[p]+'</p><p class="lead" style="font-size:13px">'+resumoFaixas(x.agg)+'</p><p class="lead" style="font-size:13px">Desconforto em '+x.dias+' treino'+(x.dias>1?'s':'')+(x.pior!=null?' · pior nota: '+x.pior+' de 10':'')+'</p></div></div>'}).join(''):'<p class="lead">Nenhum desconforto registrado nesta semana.</p>')+'</div>';
+  var ost=R.ost;
+  h+='<div class="blk card"><h2 style="font-size:17px">Avaliação semanal (OSTRC-BR)</h2>'+(ost?
+     '<p><span style="font-family:Nunito,Manrope,sans-serif;font-weight:800;font-size:30px;color:var(--p3)">'+ost.gravidade+'</span> <span class="lead">de 100 no escore de gravidade</span></p>'+
+     '<p class="lead" style="font-size:13px">'+(R.ostPrev?'Semana anterior: '+R.ostPrev.gravidade+' de 100.':'Sem avaliação na semana anterior para comparar.')+'</p>'+
+     (completa?'<p class="lead" style="font-size:13px">Respostas: '+ost.respostas.map(function(r,i){return 'P'+(i+1)+' opção '+(r+1)+' ('+ost.pontos[i]+' pts)'}).join(' · ')+'</p><p style="font-size:13px;font-weight:700">'+(R.substancial?'Problema substancial: sim (redução moderada ou grave de volume ou desempenho, ou sem conseguir treinar).':'Problema substancial: não.')+'</p>':'')
+     :'<p class="lead">O questionário desta semana ainda não foi respondido.</p>')+'</div>';
+  if(completa){
+    h+='<div class="blk card"><h2 style="font-size:17px">Carga</h2>'+tabela(['Indicador','Valor'],[
+      ['Carga da semana (tempo × esforço)',Math.round(R.carga)],
+      ['Carga da semana anterior',R.prevTem?Math.round(R.prevCarga):'sem registros'],
+      ['Variação',R.varCarga!=null?(R.varCarga>0?'+':'')+R.varCarga+'%':'—'],
+      ['Sessão mais longa da semana',R.maiorSessao?fmtMin(R.maiorSessao):'—'],
+      ['Mais longa nas 4 semanas anteriores',R.maior28!=null?fmtMin(R.maior28):'sem registros'],
+      ['Treinos reduzidos ou interrompidos',R.modificados],
+      ['Dias de descanso',R.descansos]])+'</div>';
+    var lf=[];ps.forEach(function(p){var x=R.pernas[p];Object.keys(x.cont).map(Number).sort(function(a,b){return b-a}).forEach(function(n){lf.push([p==='dir'?'Direita':'Esquerda',n,x.cont[n],NIVEL[x.agg[n]]])})});
+    if(lf.length)h+='<div class="blk card"><h2 style="font-size:17px">Faixas marcadas</h2>'+tabela(['Perna','Faixa','Vezes','Nível máximo'],lf)+'<p class="lead" style="font-size:12px">Faixas numeradas do tornozelo (1) ao joelho (9), na borda interna da tíbia.</p></div>';
+    var lt=R.regs.map(function(t){
+      if(t.descanso)return [diaCurto(t.data),'Descanso','—','—','—','—','—'];
+      var dor=['dir','esq'].filter(function(p){return t.pernas&&t.pernas[p]}).map(function(p){var x=t.pernas[p];return (p==='dir'?'D':'E')+': '+resumoFaixas(x.faixas||{})+', nota '+x.dor+(x.caminhar&&x.caminhar!=='nao'?', dói ao caminhar':'')}).join('; ')||'sem desconforto';
+      return [diaCurto(t.data),TIPO_NOME[t.tipo]||'—',fmtMin(t.tempoMin),t.distanciaKm!=null?fmtKm(t.distanciaKm)+' km':'—',t.esforco,Math.round(cargaDe(t)),dor];
+    });
+    h+='<div class="blk card"><h2 style="font-size:17px">Treinos registrados</h2>'+(lt.length?tabela(['Dia','Tipo','Tempo','Distância','Esforço','Carga','Desconforto'],lt):'<p class="lead">Nenhum registro.</p>')+'</div>';
+  }
+  h+='<div class="blk card"><h2 style="font-size:17px">Pontos para conversar com a fisioterapia</h2>'+(R.pontos.length?'<ul class="pontos">'+R.pontos.map(function(p){return '<li>'+esc(p)+'</li>'}).join('')+'</ul>':'<p class="lead">Nenhum ponto de atenção registrado nesta semana.</p>')+'</div>';
+  if(pdf) h+='<div class="blk card"><h2 style="font-size:17px">Observações do atleta</h2><p class="lead">'+(R.obs?esc(R.obs):'Sem observações.')+'</p></div>'+
+     '<div class="blk"><p class="lead" style="font-size:11px">Este relatório descreve o que o atleta registrou no app. Não é diagnóstico. Avaliação semanal: OSTRC-BR (Pimenta, Hespanhol e Lopes, 2021). Um projeto do dotLAB · UPE.</p></div>';
+  else h+='<div class="blk card"><label for="relObs" class="lbl">Observações para a fisioterapia (opcional)</label><textarea id="relObs" rows="3" placeholder="Ex.: troquei de tênis, treinei mais no asfalto, dormi mal…" style="width:100%;border-radius:10px;border:1px solid var(--line2);background:var(--surface);color:var(--ink);padding:10px 12px;font-family:inherit;font-size:15px;resize:vertical">'+esc(R.obs)+'</textarea><p class="note" style="text-align:left">Salvo quando você sai do campo. Entra no PDF.</p></div>';
+  return h;
+}
+function telaRelatorio(){
+  var R=relDados(fimRelatorio());
+  return '<section class="screen" style="display:flex;flex-direction:column;gap:16px">'+relHtml(R,S.rel.versao,false)+
+    (S.error?'<p class="err" role="alert">'+esc(S.error)+'</p>':'')+
+    (S.relMsg?'<p class="note" role="status">'+esc(S.relMsg)+'</p>':'')+
+    '<button class="btn" data-act="exportar"'+(S.exportando?' disabled':'')+'>'+(S.exportando?'Gerando PDF…':'Exportar PDF ('+(S.rel.versao==='completa'?'versão completa':'versão do atleta')+')')+'</button>'+
+  '</section>';
+}
+function carregarScript(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=function(){rej(new Error('script'))};document.head.appendChild(s)})}
+async function salvarArquivo(nome,blob){
+  if(window.claude&&window.claude.use){
+    var dl=null; try{dl=await window.claude.use('downloads')}catch(e){dl=null}
+    if(dl){
+      try{await dl.save({filename:nome,data:blob});return 'salvo'}
+      catch(e){if(e&&e.code==='declined')return 'recusado'; if(e&&e.code==='rate_limited')return 'ocupado'; if(e&&['unavailable','not_granted','capability_disabled','capability_removed'].indexOf(e.code)<0)throw e}
+    }
+  }
+  var url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=nome;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},5000);return 'salvo';
+}
+async function exportarPDF(){
+  S.exportando=true;S.error='';S.relMsg='';render();
+  var root=document.documentElement, temaAnt=root.getAttribute('data-theme'), box=null;
+  try{
+    if(!window.html2canvas)await carregarScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    if(!window.jspdf)await carregarScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    var R=relDados(fimRelatorio()), versao=S.rel.versao;
+    root.setAttribute('data-theme','light');
+    box=document.createElement('div');
+    box.className='relpdf';
+    box.style.cssText='position:fixed;left:-10000px;top:0;width:760px;background:#FFFFFF;padding:28px 32px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;font-family:Manrope,system-ui,sans-serif;color:#233122';
+    box.innerHTML=relHtml(R,versao,true);
+    document.body.appendChild(box);
+    if(document.fonts&&document.fonts.ready)await document.fonts.ready;
+    var canvas=await window.html2canvas(box,{scale:2,backgroundColor:'#FFFFFF',windowWidth:760,logging:false});
+    var W=box.offsetWidth, total=box.offsetHeight, pageH=Math.floor(W*277/190);
+    var blocks=[].map.call(box.children,function(b){return {t:b.offsetTop-8,b:b.offsetTop+b.offsetHeight}});
+    var cortes=[0],ini=0;
+    blocks.forEach(function(k){if(k.b-ini>pageH&&k.t>ini){cortes.push(k.t);ini=k.t}});
+    var fin=[];for(var i=0;i<cortes.length;i++){var c=cortes[i],prox=i+1<cortes.length?cortes[i+1]:total;fin.push(c);while(prox-c>pageH){c+=pageH;fin.push(c)}}
+    var pdfDoc=new window.jspdf.jsPDF({unit:'mm',format:'a4',orientation:'portrait'});
+    var k=canvas.width/W;
+    fin.forEach(function(y0,i){
+      var y1=i+1<fin.length?fin[i+1]:total, hpx=Math.max(1,Math.round((y1-y0)*k));
+      var pc=document.createElement('canvas');pc.width=canvas.width;pc.height=hpx;
+      var cx=pc.getContext('2d');cx.fillStyle='#FFFFFF';cx.fillRect(0,0,pc.width,pc.height);
+      cx.drawImage(canvas,0,Math.round(y0*k),canvas.width,hpx,0,0,canvas.width,hpx);
+      if(i>0)pdfDoc.addPage();
+      pdfDoc.addImage(pc.toDataURL('image/jpeg',0.92),'JPEG',10,10,190,(y1-y0)*190/W);
+      pdfDoc.setFontSize(8);pdfDoc.setTextColor(86,99,82);pdfDoc.text('Página '+(i+1)+' de '+fin.length,200,291,{align:'right'});
+    });
+    var nome='relatorio-semana-'+R.fim+'-'+(versao==='completa'?'completo':'atleta')+'.pdf';
+    var st=await salvarArquivo(nome,pdfDoc.output('blob'));
+    S.relMsg=st==='salvo'?'PDF gerado: '+nome:(st==='recusado'?'Download cancelado.':'Já existe um download aguardando confirmação.');
+  }catch(e){
+    S.error='Não foi possível gerar o PDF agora. Confira a conexão e tente de novo.';
+  }finally{
+    if(box)box.remove();
+    if(temaAnt==null)root.removeAttribute('data-theme');else root.setAttribute('data-theme',temaAnt);
+    S.exportando=false;render();
+  }
 }
 
 // ---------- render ----------
@@ -527,19 +740,27 @@ function render(){
     case 'semIntro': html=telaSemIntro(); break;
     case 'semQ': html=telaSemQ(); break;
     case 'semana': html=telaSemana(); break;
+    case 'relatorio': html=telaRelatorio(); break;
     default: html=telaHoje();
   }
   var foco=document.activeElement&&document.activeElement.id;
   app.innerHTML=html;
   if(S.msg){var mt=document.getElementById('msgtxt'),md=document.getElementById('msgdata');if(mt)mt.textContent=String(S.msg.texto||'');if(md&&S.msg.criadoEm){var dd=new Date(S.msg.criadoEm);md.textContent=isNaN(dd)?'':dd.getDate()+' de '+MESES[dd.getMonth()]}}
   if(foco){var el=document.getElementById(foco);if(el){el.focus();var v=el.value;el.value='';el.value=v}}
-  var mostraTabs=S.ready&&(S.offline||(S.perfil&&S.perfil.consentimento))&&(S.screen==='hoje'||S.screen==='semana'||S.screen==='feito');
+  var mostraTabs=S.ready&&(S.offline||(S.perfil&&S.perfil.consentimento))&&(S.screen==='hoje'||S.screen==='semana'||S.screen==='feito'||S.screen==='relatorio');
   tabs.style.display=mostraTabs?'flex':'none';
-  tabs.querySelectorAll('.tab').forEach(function(t){if(t.dataset.to===S.screen)t.setAttribute('aria-current','page');else t.removeAttribute('aria-current')});
+  tabs.querySelectorAll('.tab').forEach(function(t){if(t.dataset.to===S.screen||(S.screen==='relatorio'&&t.dataset.to==='semana'))t.setAttribute('aria-current','page');else t.removeAttribute('aria-current')});
 }
 function ir(scr){S.screen=scr;S.error='';render();window.scrollTo(0,0)}
 
 // ---------- eventos ----------
+app.addEventListener('change',function(e){
+  if(e.target.id==='relObs'){
+    var sid=relDados(fimRelatorio()).semId, txt=e.target.value.slice(0,1000);
+    if(((S.obs[sid]&&S.obs[sid].texto)||'')===txt)return;
+    S.db&&S.uid&&S.db.doc('registros/'+S.uid+'/obs/'+sid).set({texto:txt,criadoEm:new Date().toISOString()}).catch(function(){S.error='Não foi possível salvar a observação.';render()});
+  }
+});
 app.addEventListener('input',function(e){
   if(!S.draft)return;
   if(e.target.id==='dist')S.draft.distancia=e.target.value;
@@ -600,6 +821,8 @@ document.addEventListener('click',function(e){
       if(registroNaData(d.data))return;
       salvar('registros/'+S.uid+'/treinos',montarTreino(true),function(){S.draft=null;S.screen='feito'}); break;
     case 'semIntro': ir('semIntro'); break;
+    case 'relVersao': S.rel.versao=v; S.relMsg=''; render(); break;
+    case 'exportar': exportarPDF(); break;
     case 'semComecar': S.sem={i:0,r:[null,null,null,null]}; ir('semQ'); break;
     case 'semOpt': S.sem.r[S.sem.i]=+v; render(); break;
     case 'semVoltar': if(S.sem.i===0)ir('semIntro'); else {S.sem.i--; render()} break;
@@ -607,7 +830,7 @@ document.addEventListener('click',function(e){
       if(S.sem.i<OSTRC.length-1){S.sem.i++; render(); window.scrollTo(0,0); break}
       var pts=S.sem.r.map(function(k,i){return OSTRC[i].pts[k]});
       var sem=isoWeek(new Date());
-      salvar('registros/'+S.uid+'/semanal/'+sem,{semana:sem,respostas:S.sem.r.slice(),pontos:pts,gravidade:pts.reduce(function(a,b){return a+b},0),instrumento:'OSTRC-BR'},function(){S.sem=null;S.screen='hoje'});
+      salvar('registros/'+S.uid+'/semanal/'+sem,{semana:sem,respostas:S.sem.r.slice(),pontos:pts,gravidade:pts.reduce(function(a,b){return a+b},0),instrumento:'OSTRC-BR'},function(){S.sem=null;S.screen='relatorio';S.relMsg=''});
       break;
   }
 });
